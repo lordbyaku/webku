@@ -1,0 +1,11 @@
+node_modules/
+.wrangler/
+dist/
+.dev.vars
+*.log
+.env
+*.local.md
+# hasil build (dibuat ulang oleh `npm run build`)
+apps/cms-worker/public/
+apps/site-worker/public/_fonts/
+apps/cms-ui/public/_fonts/

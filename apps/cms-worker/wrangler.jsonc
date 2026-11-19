@@ -1,0 +1,44 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "umkm-cms",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Ganti domainku.id dengan domain asli sebelum deploy produksi (lihat docs/DEPLOYMENT.md)
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "umkm-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "../../migrations"
+    }
+  ],
+  "r2_buckets": [
+    { "binding": "SITES", "bucket_name": "umkm-sites" },
+    { "binding": "MEDIA", "bucket_name": "umkm-media" }
+  ],
+  "vars": {
+    "ENVIRONMENT": "development",
+    "ROOT_DOMAIN": "domainku.id",
+    "CMS_ORIGIN": "http://localhost:8787",
+    "MEDIA_ORIGIN": "http://localhost:8787/api/_dev/media",
+    "BRAND_NAME": "DomainKu",
+    "PBKDF2_ITER": "100000",
+    "HOSTING_PRICE_IDR": "100000",
+    "PAYMENT_INFO": "",
+    "ADMIN_WA": "",
+    // Hanya dev: tautan "Buka situs" mengarah ke site-worker lokal. Hapus di produksi.
+    "SITE_URL_PATTERN": "http://{slug}.localhost:8788",
+    // Kunci uji resmi Turnstile (selalu lolos). Ganti di produksi.
+    "TURNSTILE_SITE_KEY": "1x00000000000000000000AA"
+  },
+  "triggers": { "crons": ["0 3 * * 0"] },
+  "observability": { "enabled": true }
+}

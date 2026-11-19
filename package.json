@@ -1,0 +1,43 @@
+{
+  "name": "umkm-web-provider",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "vitest run && npm --workspace apps/cms-worker run test",
+    "test:unit": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p apps/cms-ui/tsconfig.json",
+    "dev:cms": "npm --workspace apps/cms-worker run dev",
+    "dev:site": "npm --workspace apps/site-worker run dev",
+    "db:migrate:local": "npm --workspace apps/cms-worker run db:migrate:local",
+    "build": "node scripts/copy-fonts.mjs && npm --workspace apps/cms-ui run build",
+    "fonts": "node scripts/copy-fonts.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.8.4",
+    "@cloudflare/workers-types": "^5.20261118.1",
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
+    "@fontsource-variable/cormorant-garamond": "^5.3.0",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource-variable/outfit": "^5.3.0",
+    "@fontsource-variable/playfair-display": "^5.3.0",
+    "@fontsource-variable/space-grotesk": "^5.3.0",
+    "@fontsource-variable/syne": "^5.3.0",
+    "@fontsource/anton": "^5.3.0",
+    "@fontsource/dm-serif-display": "^5.3.0",
+    "@fontsource/instrument-serif": "^5.3.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.12",
+    "wrangler": "^4.164.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "esbuild@0.28.2": true,
+    "workerd@1.20260815.1": true,
+    "workerd@1.20261117.1": true
+  }
+}

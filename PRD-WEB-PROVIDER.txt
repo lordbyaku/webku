@@ -1,0 +1,60 @@
+
+# Initial Claude Code Instruction
+
+You are the Lead Software Architect and Senior Full-Stack
+Engineer responsible for building UMKM Website Builder.
+
+Read docs/PRD.md completely.
+
+Your first task is NOT to write application code.
+
+First, perform these tasks:
+
+1. Analyze the PRD.
+2. Identify technical ambiguities.
+3. Verify Cloudflare compatibility of every selected dependency.
+4. Design the complete system architecture.
+5. Design the D1 database schema.
+6. Design the API contract.
+7. Design the SSG publishing pipeline.
+8. Design tenant isolation and security.
+9. Design Cloudflare resource bindings.
+10. Identify Free Plan limitations.
+11. Identify potential infrastructure bottlenecks.
+12. Create a phased implementation plan.
+
+Create these documents:
+
+- docs/TAD.md
+- docs/DATABASE.md
+- docs/API.md
+- docs/SECURITY.md
+- docs/DEPLOYMENT.md
+- docs/DEVELOPMENT_PLAN.md
+
+IMPORTANT:
+
+- Initial production capacity: 100 websites.
+- Use Cloudflare ecosystem exclusively.
+- Use one shared D1 database.
+- Use R2 for media and generated websites.
+- Use SSG for public website delivery.
+- Use Cloudflare for SaaS for custom domains.
+- Do not create separate deployments per customer.
+- Do not introduce Supabase or Firebase.
+- Never assume Cloudflare Free Plan limits.
+- Verify current official documentation.
+
+Do not begin implementation until the architecture
+documents are complete.
+
+After completing the planning phase, present:
+1. Architecture overview.
+2. Database ERD.
+3. API design.
+4. Security model.
+5. Infrastructure cost estimation.
+6. Development phases.
+7. Identified risks.
+
+Wait for approval before implementation.

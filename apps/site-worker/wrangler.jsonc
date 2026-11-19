@@ -1,0 +1,24 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "umkm-site",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  // Produksi: aktifkan routes di bawah setelah domain dipilih (docs/DEPLOYMENT.md §4)
+  // "routes": [
+  //   { "pattern": "*.domainku.id/*", "zone_name": "domainku.id" },
+  //   { "pattern": "domainku.id/*", "zone_name": "domainku.id" }
+  // ],
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "none"
+  },
+  "r2_buckets": [{ "binding": "SITES", "bucket_name": "umkm-sites" }],
+  "vars": {
+    "ENVIRONMENT": "development",
+    "ROOT_DOMAIN": "domainku.id",
+    "MEDIA_ORIGIN": "http://localhost:8787/api/_dev/media"
+  },
+  "observability": { "enabled": true, "head_sampling_rate": 0.1 }
+}
