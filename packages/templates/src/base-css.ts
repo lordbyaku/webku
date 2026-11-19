@@ -11,7 +11,7 @@ html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:72p
 body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:16.5px;line-height:1.65;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
 img{max-width:100%;height:auto;display:block}
 a{color:inherit;text-underline-offset:.2em}
-h1,h2,h3{margin:0;font-family:var(--fd);font-weight:var(--dw);letter-spacing:var(--dt);line-height:1.04;text-transform:var(--du);text-wrap:balance}
+h1,h2,h3{margin:0;font-family:var(--fd);font-weight:var(--dw);letter-spacing:var(--dt);line-height:1.04;text-transform:var(--du);text-wrap:balance;overflow-wrap:break-word}
 h1 em,h2 em{font-style:italic;font-weight:inherit}
 p{margin:0}
 ul,dl,dd{margin:0;padding:0;list-style:none}

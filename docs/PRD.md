@@ -207,7 +207,7 @@ Semua huruf berlisensi SIL Open Font License, disimpan di `/_fonts/` dan dilayan
 | jasa-03 | Studio Kreatif | Jasa | Editorial | Monokrom |
 | jasa-04 | Servis Elektronik | Jasa | Layanan | Senja |
 | jasa-05 | Jasa Freelance | Jasa | Bio-link | Navy |
-| cantik-01 | Salon Emas | Kecantikan | Butik | Gading Emas |
+| cantik-01 | Salon Emas | Kecantikan | Butik | Blush |
 | cantik-02 | Spa Pastel | Kecantikan | Layanan | Blush |
 | cantik-03 | Nail Art | Kecantikan | Galeri | Lavender |
 | cantik-04 | Skincare Herbal | Kecantikan | Editorial | Daun Sage |

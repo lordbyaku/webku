@@ -28,7 +28,7 @@ export const TEMPLATES: TemplateDef[] = [
   T("jasa-03", "Studio Kreatif", "jasa", "L02", "T06"),
   T("jasa-04", "Servis Elektronik", "jasa", "L09", "T11"),
   T("jasa-05", "Jasa Freelance", "jasa", "L07", "T12"),
-  T("cantik-01", "Salon Emas", "cantik", "L10", "T07"),
+  T("cantik-01", "Salon Emas", "cantik", "L10", "T05"),
   T("cantik-02", "Spa Pastel", "cantik", "L09", "T05"),
   T("cantik-03", "Nail Art", "cantik", "L05", "T10"),
   T("cantik-04", "Skincare Herbal", "cantik", "L02", "T03"),

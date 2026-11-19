@@ -9,14 +9,21 @@ import { audit, auditStmt, clientIp } from "../lib/audit";
 import { requireAdmin, requireAuth } from "../lib/auth";
 import { ApiError, badRequest, notFound, ok, readJson, str } from "../lib/http";
 import { deleteMedia, listMedia, mediaDto, uploadMedia } from "../lib/media";
-import { publishTenant, writeSuspendedPages } from "../lib/publish";
+import { deleteHostFiles, purgeHosts, publishTenant, writeSuspendedPages } from "../lib/publish";
 import { getHostnames, getTenant, tenantDto, type TenantRow } from "../lib/repo";
+import { lastBackupAt } from "../lib/jobs";
 import { getSiteData, previewSite, publishSite, saveContent, setTemplate } from "../lib/site-ops";
 
 export const adminRoutes = new Hono<AppEnv>();
 adminRoutes.use("*", requireAuth, requireAdmin);
 
 const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,31}$/;
+
+async function anyTenant(c: { env: AppEnv["Bindings"] }, id: string): Promise<TenantRow> {
+  const t = await c.env.DB.prepare("SELECT * FROM tenants WHERE id = ?").bind(id).first<TenantRow>();
+  if (!t) throw notFound("Pelanggan");
+  return t;
+}
 
 async function mustTenant(c: { env: AppEnv["Bindings"] }, id: string): Promise<TenantRow> {
   const t = await getTenant(c.env.DB, id);
@@ -29,7 +36,7 @@ async function mustTenant(c: { env: AppEnv["Bindings"] }, id: string): Promise<T
 adminRoutes.get("/tenants", async (c) => {
   const status = c.req.query("status");
   const q = (c.req.query("q") ?? "").trim().toLowerCase().slice(0, 40);
-  const where: string[] = ["t.status != 'deleted'"];
+  const where: string[] = [status === "deleted" ? "t.status = 'deleted'" : "t.status != 'deleted'"];
   const args: unknown[] = [];
   if (status && ["draft", "active", "suspended"].includes(status)) {
     where.push("t.status = ?");
@@ -110,7 +117,8 @@ adminRoutes.post("/tenants", async (c) => {
 });
 
 adminRoutes.get("/tenants/:id", async (c) => {
-  const t = await mustTenant(c, c.req.param("id"));
+  // Termasuk pelanggan yang sudah dihapus (untuk dipulihkan / diekspor).
+  const t = await anyTenant(c, c.req.param("id"));
   const [users, hosts, payments] = await Promise.all([
     c.env.DB.prepare("SELECT id, username, must_change_pw, failed_attempts, locked_until, last_login_at, disabled FROM users WHERE tenant_id = ?").bind(t.id).all(),
     getHostnames(c.env.DB, t.id, false),
@@ -138,7 +146,7 @@ adminRoutes.patch("/tenants/:id", async (c) => {
   }
   if (b.templateId !== undefined) {
     if (!isTemplateId(String(b.templateId))) fields.templateId = "Template tidak dikenal";
-    sets.push("template_id = ?");
+    sets.push("draft_template_id = ?");
     args.push(b.templateId);
   }
   for (const [key, col] of [["allowTemplateSwitch", "allow_template_switch"], ["showBranding", "show_branding"]] as const) {
@@ -193,6 +201,92 @@ adminRoutes.post("/tenants/:id/status", async (c) => {
   }
   await audit(c, `admin.tenant_${status}`, t.id);
   return ok(c, { status });
+});
+
+// ---------- alamat, hapus, pulihkan, ekspor ----------
+
+adminRoutes.post("/tenants/:id/slug", async (c) => {
+  const t = await mustTenant(c, c.req.param("id"));
+  const slug = (str((await readJson(c)).slug) ?? "").trim().toLowerCase();
+  const sc = checkSlug(slug);
+  if (!sc.ok) throw badRequest(sc.reason, { slug: sc.reason });
+  if (slug === t.slug) return ok(c, { slug });
+  if (await c.env.DB.prepare("SELECT 1 FROM tenants WHERE slug = ?").bind(slug).first()) {
+    throw new ApiError(409, "SLUG_TAKEN", "Subdomain sudah dipakai", { fields: { slug: "Subdomain sudah dipakai" } });
+  }
+  const oldHost = `${t.slug}.${c.env.ROOT_DOMAIN}`;
+  const newHost = `${slug}.${c.env.ROOT_DOMAIN}`;
+  const ts = Date.now();
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE tenants SET slug = ?, updated_at = ? WHERE id = ?").bind(slug, ts, t.id),
+    c.env.DB.prepare("DELETE FROM hostnames WHERE hostname = ? AND tenant_id = ?").bind(oldHost, t.id),
+    c.env.DB.prepare("INSERT INTO hostnames (hostname, tenant_id, kind, status, created_at) VALUES (?, ?, 'subdomain', 'active', ?)").bind(newHost, t.id, ts),
+    auditStmt(c.env.DB, { actorUserId: c.get("user").id, tenantId: t.id, action: "admin.slug_change", detail: { from: t.slug, to: slug }, ip: clientIp(c) }),
+  ]);
+  // Tayangkan versi terbit di alamat baru, lalu bersihkan alamat lama.
+  if (t.status === "active") {
+    const r = await publishTenant(c.env, t.id, { actorId: c.get("user").id, source: "published", enforceDailyLimit: false, allowFirstPublish: false }).catch(() => null);
+    if (r) c.executionCtx.waitUntil(r.purge);
+  } else if (t.status === "suspended") {
+    await writeSuspendedPages(c.env, t.id);
+  }
+  await deleteHostFiles(c.env, oldHost);
+  c.executionCtx.waitUntil(purgeHosts(c.env, [oldHost]));
+  return ok(c, { slug, siteUrl: `https://${newHost}` });
+});
+
+adminRoutes.delete("/tenants/:id", async (c) => {
+  const t = await mustTenant(c, c.req.param("id"));
+  const hosts = await getHostnames(c.env.DB, t.id, false);
+  const ts = Date.now();
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE tenants SET status = 'deleted', deleted_at = ?, updated_at = ? WHERE id = ?").bind(ts, ts, t.id),
+    c.env.DB.prepare("UPDATE users SET disabled = 1 WHERE tenant_id = ?").bind(t.id),
+    c.env.DB.prepare("DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE tenant_id = ?)").bind(t.id),
+    auditStmt(c.env.DB, { actorUserId: c.get("user").id, tenantId: t.id, action: "admin.tenant_delete", detail: { slug: t.slug }, ip: clientIp(c) }),
+  ]);
+  // Situs langsung tidak bisa dibuka (halaman "situs tidak ditemukan").
+  for (const h of hosts) await deleteHostFiles(c.env, h);
+  c.executionCtx.waitUntil(purgeHosts(c.env, hosts));
+  return ok(c, { deletedAt: ts, purgeAfter: ts + 30 * DAY_MS });
+});
+
+adminRoutes.post("/tenants/:id/restore", async (c) => {
+  const t = await anyTenant(c, c.req.param("id"));
+  if (t.status !== "deleted") return ok(c, { status: t.status });
+  const ts = Date.now();
+  // Dipulihkan sebagai nonaktif; admin mengaktifkan kembali secara sadar.
+  const next = t.published_at ? "suspended" : "draft";
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE tenants SET status = ?, deleted_at = NULL, updated_at = ? WHERE id = ?").bind(next, ts, t.id),
+    c.env.DB.prepare("UPDATE users SET disabled = 0 WHERE tenant_id = ?").bind(t.id),
+    auditStmt(c.env.DB, { actorUserId: c.get("user").id, tenantId: t.id, action: "admin.tenant_restore", ip: clientIp(c) }),
+  ]);
+  if (next === "suspended") await writeSuspendedPages(c.env, t.id);
+  return ok(c, { status: next });
+});
+
+adminRoutes.get("/tenants/:id/export", async (c) => {
+  const t = await anyTenant(c, c.req.param("id"));
+  const [content, media, payments, hosts] = await Promise.all([
+    c.env.DB.prepare("SELECT draft_json, published_json, version FROM site_content WHERE tenant_id = ?").bind(t.id).first<{ draft_json: string; published_json: string | null; version: number }>(),
+    c.env.DB.prepare("SELECT * FROM media WHERE tenant_id = ? ORDER BY created_at").bind(t.id).all<{ id: string; r2_key: string; bytes: number; alt: string | null }>(),
+    c.env.DB.prepare("SELECT kind, amount_idr, paid_at, period_start, period_end, method, note FROM payments WHERE tenant_id = ? ORDER BY paid_at").bind(t.id).all(),
+    getHostnames(c.env.DB, t.id, false),
+  ]);
+  await audit(c, "admin.export", t.id);
+  return ok(c, {
+    exportedAt: new Date().toISOString(),
+    tenant: { ...tenantDto(t), notes: t.notes },
+    hostnames: hosts,
+    content: {
+      draft: content ? JSON.parse(content.draft_json) : null,
+      published: content?.published_json ? JSON.parse(content.published_json) : null,
+      version: content?.version ?? null,
+    },
+    media: media.results.map((m) => ({ id: m.id, url: `${c.env.MEDIA_ORIGIN}/${m.r2_key}`, bytes: m.bytes, alt: m.alt })),
+    payments: payments.results,
+  });
 });
 
 // ---------- konten atas nama pelanggan ----------
@@ -285,8 +379,19 @@ function parseAmount(v: unknown): number {
   return n;
 }
 
+/** Tolak pembayaran kembar (jenis & nominal sama) dalam 2 menit — mencegah klik ganda tercatat dua kali. */
+async function assertNotDuplicate(c: Context<AppEnv>, tenantId: string, kind: string, amount: number) {
+  const dup = await c.env.DB.prepare(
+    "SELECT 1 FROM payments WHERE tenant_id = ? AND kind = ? AND amount_idr = ? AND created_at > ? LIMIT 1",
+  )
+    .bind(tenantId, kind, amount, Date.now() - 120_000)
+    .first();
+  if (dup) throw new ApiError(409, "DUPLICATE_PAYMENT", "Pembayaran yang sama baru saja dicatat. Periksa riwayat pembayaran.");
+}
+
 async function renew(c: Context<AppEnv>, t: TenantRow, b: Record<string, unknown>) {
   const amount = b.amountIdr === undefined ? Number(c.env.HOSTING_PRICE_IDR) || 100_000 : parseAmount(b.amountIdr);
+  await assertNotDuplicate(c, t.id, "hosting", amount);
   const paidAt = parsePaidAt(b.paidAt);
   const fromToday = b.from === "today" || !t.hosting_until;
   const start = fromToday ? Date.now() : t.hosting_until!;
@@ -317,6 +422,7 @@ adminRoutes.post("/tenants/:id/payments", async (c) => {
   if (kind === "hosting") return ok(c, await renew(c, t, b), 201);
   if (kind !== "setup" && kind !== "maintenance" && kind !== "addon") throw badRequest("Jenis pembayaran tidak valid");
   const amount = parseAmount(b.amountIdr);
+  await assertNotDuplicate(c, t.id, kind, amount);
   const paidAt = parsePaidAt(b.paidAt);
   const id = newId("pay");
   const ts = Date.now();
@@ -400,6 +506,7 @@ adminRoutes.get("/stats", async (c) => {
     .bind(now, now + 30 * DAY_MS, now, new Date(now).toISOString().slice(0, 10))
     .first<Record<string, number | null>>();
   return ok(c, {
+    lastBackupAt: await lastBackupAt(c.env),
     tenants: { active: r?.active ?? 0, draft: r?.draft ?? 0, suspended: r?.suspended ?? 0 },
     unpaid: r?.unpaid ?? 0,
     hostingExpiring30: r?.expiring30 ?? 0,

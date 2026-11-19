@@ -60,8 +60,8 @@ export const L01: LayoutDef = {
 .s-info{background:var(--tx);color:var(--bg)}
 .s-info .s-head p,.s-info .contact li span{color:inherit;opacity:.65}
 .s-info-grid{display:grid;gap:40px}
-.s-info .hours div{border-color:color-mix(in srgb,var(--bg) 18%,transparent)}
-.s-info .socials a{border-color:color-mix(in srgb,var(--bg) 25%,transparent)}
+.s-info .hours div{border-color:rgba(127,127,127,.32);border-color:color-mix(in srgb,var(--bg) 18%,transparent)}
+.s-info .socials a{border-color:rgba(127,127,127,.32);border-color:color-mix(in srgb,var(--bg) 25%,transparent)}
 .s-info .btn{background:var(--bg);color:var(--tx)}
 .s-info .btn-o{background:transparent;color:var(--bg)}
 .s-info .map{margin-top:28px}

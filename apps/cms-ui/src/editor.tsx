@@ -54,6 +54,10 @@ interface Ctx {
   previewHtml: string | null;
   previewTemplate: string | null;
   setPreviewTemplate: (id: string | null) => void;
+  /** Perubahan yang belum tersimpan dari sesi sebelumnya (mis. sesi habis saat mengetik). */
+  recovery: { at: number } | null;
+  restoreRecovery: () => void;
+  discardRecovery: () => void;
 }
 
 const EditorCtx = createContext<Ctx | null>(null);
@@ -75,6 +79,8 @@ export function EditorProvider({ ep, base, isAdmin, children, fallback }: { ep: 
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<string | null>(null);
+  const [recovery, setRecovery] = useState<{ at: number; content: Content } | null>(null);
+  const backupKey = `cms-draft:${ep.content}`;
 
   const contentRef = useRef<Content | null>(null);
   const versionRef = useRef(0);
@@ -94,6 +100,9 @@ export function EditorProvider({ ep, base, isAdmin, children, fallback }: { ep: 
       setSaveState("idle");
       setErrors({});
       setLoadError(null);
+      const backup = readBackup(backupKey);
+      if (backup && JSON.stringify(backup.content) !== JSON.stringify(d.content.draft)) setRecovery(backup);
+      else clearBackup(backupKey);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : "Gagal memuat data");
     }
@@ -133,6 +142,7 @@ export function EditorProvider({ ep, base, isAdmin, children, fallback }: { ep: 
         setErrors({});
         setUnpublished(true);
         setSaveState(dirty.current ? "saving" : "saved");
+        if (!dirty.current) clearBackup(backupKey);
       } catch (e) {
         failed = true;
         if (e instanceof ApiError && e.code === "VERSION_CONFLICT") setSaveState("conflict");
@@ -156,6 +166,7 @@ export function EditorProvider({ ep, base, isAdmin, children, fallback }: { ep: 
       const next = structuredClone(contentRef.current);
       mutate(next);
       contentRef.current = next;
+      writeBackup(backupKey, next);
       setContent(next);
       dirty.current = true;
       setSaveState("saving");
@@ -262,6 +273,43 @@ export function EditorProvider({ ep, base, isAdmin, children, fallback }: { ep: 
     previewHtml,
     previewTemplate,
     setPreviewTemplate,
+    recovery: recovery ? { at: recovery.at } : null,
+    restoreRecovery: () => {
+      if (!recovery) return;
+      const c = recovery.content;
+      setRecovery(null);
+      update((d) => Object.assign(d, structuredClone(c)));
+    },
+    discardRecovery: () => {
+      clearBackup(backupKey);
+      setRecovery(null);
+    },
   };
   return <EditorCtx.Provider value={value}>{children}</EditorCtx.Provider>;
+}
+
+// ---------- cadangan draf di browser (aman bila penyimpanan diblokir) ----------
+function readBackup(key: string): { at: number; content: Content } | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    return v && v.content && typeof v.at === "number" ? v : null;
+  } catch {
+    return null;
+  }
+}
+function writeBackup(key: string, content: Content) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ at: Date.now(), content }));
+  } catch {
+    /* penyimpanan penuh / diblokir: abaikan */
+  }
+}
+function clearBackup(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* abaikan */
+  }
 }

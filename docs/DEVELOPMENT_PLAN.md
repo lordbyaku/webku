@@ -15,7 +15,22 @@ Estimasi durasi mengasumsikan **1 developer + bantuan Claude Code**, ±4–6 jam
 | 2 — Template & publish | ✅ Selesai: mesin template, **ke-30 template sudah bisa dirender** (10 layout × 12 tema), publish ke R2, site Worker (Cache API, ETag/304, CSP, 404, suspend 503), landing page. **Belum:** uji Lighthouse di situs ter-deploy |
 | 3 — CMS UI | ✅ Selesai: login (Turnstile), ganti password, beranda situs, 9 editor bagian, pustaka foto (kompres WebP di browser), simpan otomatis, pratinjau langsung (desktop) & layar penuh (HP), terbitkan, pemilih 30 desain. Diuji visual di HP & desktop. **Belum:** uji kegunaan dengan pemilik UMKM sungguhan |
 | 4 — Panel admin | ✅ Sebagian besar: daftar & cari pelanggan, statistik, tambah pelanggan + pesan WA siap salin, detail, pembayaran, perpanjang hosting, reset password, buka kunci, suspend/aktifkan, catatan, terbitkan ulang semua, daftar masa hosting. **Belum:** ganti slug, hapus pelanggan, ekspor data, maintenance request, log aktivitas di UI |
-| 5–7 | ⏳ Belum dimulai |
+| 5 — 30 template | ✅ Dirombak: 10 layout berkarakter + 12 tema berhuruf premium (self-hosted), tampilan dekoratif saat belum ada foto |
+| 6 — Hardening | ✅ Sebagian: audit kode & perbaikan (lihat di bawah), backup otomatis, tes site-worker. **Belum:** uji Lighthouse & CPU di Cloudflare asli, Cloudflare Access, landing page final |
+| 7 | ⏳ Belum dimulai |
+
+### Hasil audit 19 November 2026 (sudah diperbaiki)
+
+- CSP situs kini mengizinkan huruf (`font-src 'self'`); favicon & apple-touch-icon statis; path tak dikenal → 404 ringan (bukan redirect) agar 1 kunjungan = 1 permintaan Worker.
+- Desain draf terpisah dari desain tayang (`draft_template_id`); terbit ulang admin tidak menimpa pilihan pelanggan.
+- Konfigurasi `wrangler.jsonc`: bagian utama = produksi, `env.dev` = lokal (fitur dev tidak mungkin aktif di produksi).
+- Kuota foto & jatah terbit atomik; terbit admin tidak memakai jatah pelanggan; rollback situs bila DB gagal saat terbit.
+- Pembayaran kembar ditolak di server; tombol admin terkunci selama proses.
+- Cadangan draf di browser + tawaran pulihkan setelah sesi habis; galat isian menunjuk bagian yang salah.
+- Perpanjang hosting "mulai hari ini"; ganti subdomain; hapus/pulihkan/ekspor pelanggan; log aktivitas per pelanggan.
+- Backup mingguan bertahap ke R2 + skrip pemulihan; hapus permanen otomatis setelah 30 hari.
+- Template: fallback `color-mix`, judul panjang tidak meluber, slogan panjang di Poster; kombinasi kembar cantik-01 diperbaiki.
+- Bundel CMS kembali ±33 KB gzip (katalog template terpisah dari kode render).
 
 **Desain CMS:** huruf Plus Jakarta Sans (karya tipografer Indonesia, self-hosted), hijau daun `#0E6B5C` di atas abu kehijauan `#F2F4F1`, kuning kunyit `#E3A21A` khusus penanda "belum tayang". Bilah Terbitkan gelap di bawah sebagai elemen utama. Kode di `apps/cms-ui` (Vite + Preact), hasil build ke `apps/cms-worker/public`.
 

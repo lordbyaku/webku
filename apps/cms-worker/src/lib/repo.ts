@@ -10,6 +10,8 @@ export interface TenantRow {
   business_name: string;
   category: string;
   template_id: string;
+  draft_template_id: string | null;
+  media_count: number;
   status: "draft" | "active" | "suspended" | "deleted";
   payment_status: "unpaid" | "paid";
   allow_template_switch: number;
@@ -118,13 +120,15 @@ export function tenantDto(t: TenantRow) {
     slug: t.slug,
     businessName: t.business_name,
     category: t.category,
-    templateId: t.template_id,
+    templateId: t.draft_template_id ?? t.template_id,
+    publishedTemplateId: t.template_id,
     status: t.status,
     paymentStatus: t.payment_status,
     allowTemplateSwitch: t.allow_template_switch === 1,
     showBranding: t.show_branding === 1,
     mediaQuotaBytes: t.media_quota_bytes,
     mediaUsedBytes: t.media_used_bytes,
+    mediaCount: t.media_count,
     hostingUntil: t.hosting_until,
     publishedAt: t.published_at,
     createdAt: t.created_at,

@@ -1,7 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { CATEGORIES, CATEGORY_LABEL, type Category } from "@umkm/content-schema";
-import { TEMPLATES } from "@umkm/templates";
+import { TEMPLATES } from "@umkm/templates/catalog";
 import { api, ApiError } from "../api";
 import { Icon } from "../components/Icon";
 import { confirmAction, copyText, Loading, rupiah, tanggal, TextField, toast } from "../components/ui";
@@ -13,7 +13,7 @@ interface TenantDto {
   businessName: string;
   category: Category;
   templateId: string;
-  status: "draft" | "active" | "suspended";
+  status: "draft" | "active" | "suspended" | "deleted";
   paymentStatus: "unpaid" | "paid";
   allowTemplateSwitch: boolean;
   showBranding: boolean;
@@ -31,6 +31,7 @@ const STATUS: Record<string, [string, string]> = {
   draft: ["Belum tayang", ""],
   active: ["Tayang", "ok"],
   suspended: ["Nonaktif", "bad"],
+  deleted: ["Dihapus", "bad"],
 };
 
 function StatusBadge({ s }: { s: string }) {
@@ -132,6 +133,11 @@ export function AdminTenants() {
           </a>
         </div>
       )}
+      {stats && (
+        <p class="hint" style="margin:-12px 0 20px">
+          {stats.lastBackupAt ? `Backup otomatis terakhir: ${tanggal(stats.lastBackupAt)}` : "Backup otomatis belum pernah berjalan (berjalan tiap jam di server produksi)."}
+        </p>
+      )}
       <div class="toolbar">
         <input class="input" type="search" placeholder="Cari nama usaha atau subdomain" value={q} onInput={(e) => setQ((e.currentTarget as HTMLInputElement).value)} aria-label="Cari pelanggan" />
         <select class="select" style="width:auto;min-height:44px" value={status} onChange={(e) => setStatus((e.currentTarget as HTMLSelectElement).value)} aria-label="Saring status">
@@ -140,6 +146,7 @@ export function AdminTenants() {
           <option value="draft">Belum tayang</option>
           <option value="suspended">Nonaktif</option>
           <option value="unpaid">Belum bayar</option>
+          <option value="deleted">Dihapus</option>
         </select>
         <a class="btn btn-sm" href="#/admin/new">
           <Icon name="plus" />
@@ -321,38 +328,110 @@ export function AdminNew({ rootDomain }: { rootDomain: string }) {
 }
 
 // ---------- detail pelanggan ----------
+const AUDIT_LABEL: Record<string, string> = {
+  "auth.login": "Masuk ke CMS",
+  "auth.login_failed": "Gagal masuk",
+  "auth.locked": "Akun terkunci (5x salah)",
+  "auth.change_password": "Ganti password",
+  "content.save": "Menyimpan konten",
+  "site.publish": "Menerbitkan situs",
+  "site.republish": "Terbit ulang",
+  "site.template": "Mengganti desain",
+  "media.upload": "Mengunggah foto",
+  "media.delete": "Menghapus foto",
+  "admin.tenant_create": "Admin membuat pelanggan",
+  "admin.tenant_update": "Admin mengubah pengaturan",
+  "admin.tenant_active": "Admin mengaktifkan situs",
+  "admin.tenant_suspended": "Admin menonaktifkan situs",
+  "admin.tenant_delete": "Admin menghapus pelanggan",
+  "admin.tenant_restore": "Admin memulihkan pelanggan",
+  "admin.slug_change": "Admin mengganti alamat situs",
+  "admin.reset_password": "Admin reset password",
+  "admin.unlock": "Admin membuka kunci akun",
+  "admin.payment": "Admin mencatat pembayaran",
+  "admin.payment_delete": "Admin menghapus pembayaran",
+  "admin.hosting_renew": "Admin memperpanjang hosting",
+  "admin.hosting_set": "Admin mengubah tanggal hosting",
+  "admin.export": "Admin mengekspor data",
+};
+
+function waktu(ms: number) {
+  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }).format(ms);
+}
+
+function download(name: string, data: unknown) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export function AdminTenant({ id, rootDomain }: { id: string; rootDomain: string }) {
   const [d, setD] = useState<any>(null);
+  const [audit, setAudit] = useState<any[]>([]);
   const [temp, setTemp] = useState<{ username: string; temporaryPassword: string } | null>(null);
-  const [pay, setPay] = useState({ kind: "setup", amount: "100000", method: "" });
+  const [pay, setPay] = useState({ kind: "setup", amount: "100000", method: "", from: "previous_end" });
   const [notes, setNotes] = useState<string | null>(null);
+  const [newSlug, setNewSlug] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const load = () =>
-    api("GET", `/admin/tenants/${id}`)
-      .then((x) => (setD(x), setNotes(x.tenant.notes ?? "")))
+    Promise.all([api("GET", `/admin/tenants/${id}`), api("GET", `/admin/audit?tenantId=${encodeURIComponent(id)}`)])
+      .then(([x, a]) => {
+        setD(x);
+        setNotes(x.tenant.notes ?? "");
+        setAudit(a.items.slice(0, 25));
+      })
       .catch((e) => toast(e.message, true));
   useEffect(() => {
     load();
   }, [id]);
 
+  /** Jalankan aksi sekali saja: semua tombol terkunci selama proses (mencegah klik ganda). */
   async function act(fn: () => Promise<unknown>, done: string) {
+    if (busy) return;
+    setBusy(true);
     try {
       await fn();
       toast(done);
       await load();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Gagal", true);
+    } finally {
+      setBusy(false);
     }
   }
 
   if (!d) return <Loading />;
-  const t: TenantDto = d.tenant;
+  const t: TenantDto & { status: string } = d.tenant;
   const owner = d.users[0];
   const host = `${t.slug}.${rootDomain}`;
   const locked = owner?.locked_until && owner.locked_until > Date.now();
+  const deleted = t.status === "deleted";
+
+  if (deleted) {
+    return (
+      <div class="editor-col" style="max-width:820px">
+        <div class="ed-head">
+          <h1>{t.businessName}</h1>
+          <p>Pelanggan ini sudah dihapus. Data akan dihapus permanen 30 hari setelah tanggal penghapusan.</p>
+        </div>
+        <div class="btn-row">
+          <button class="btn" disabled={busy} onClick={() => act(() => api("POST", `/admin/tenants/${id}/restore`), "Pelanggan dipulihkan dalam status nonaktif")}>
+            Pulihkan pelanggan
+          </button>
+          <button class="btn btn-quiet" disabled={busy} onClick={() => act(async () => download(`${t.slug}.json`, await api("GET", `/admin/tenants/${id}/export`)), "Data diekspor")}>
+            Ekspor data
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div class="editor-col" style="max-width:820px">
+    <fieldset class="editor-col" style="max-width:820px;border:0;padding:0;margin:0;min-width:0" disabled={busy} aria-busy={busy}>
       <div class="ed-head" style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-end">
         <div>
           <h1>{t.businessName}</h1>
@@ -412,16 +491,31 @@ export function AdminTenant({ id, rootDomain }: { id: string; rootDomain: string
           </div>
           <TextField label="Nominal" prefix="Rp" inputMode="numeric" value={pay.amount} onInput={(v) => setPay({ ...pay, amount: v.replace(/\D/g, "") })} />
         </div>
+        {pay.kind === "hosting" && (
+          <div class="field">
+            <label class="label" for="pf">
+              Masa 1 tahun dihitung dari
+            </label>
+            <select id="pf" class="select" value={pay.from} onChange={(e) => setPay({ ...pay, from: (e.currentTarget as HTMLSelectElement).value })}>
+              <option value="previous_end">Tanggal habis sebelumnya ({tanggal(t.hostingUntil)})</option>
+              <option value="today">Hari ini</option>
+            </select>
+            <div class="hint">Pilih "Hari ini" bila masa hosting sudah lama lewat.</div>
+          </div>
+        )}
         <TextField label="Cara bayar" value={pay.method} placeholder="Transfer BCA, QRIS, tunai…" onInput={(v) => setPay({ ...pay, method: v })} />
         <div class="btn-row">
           <button
             class="btn"
-            disabled={!pay.amount}
+            disabled={!pay.amount || busy}
             onClick={() =>
-              act(() => api("POST", `/admin/tenants/${id}/payments`, { kind: pay.kind, amountIdr: Number(pay.amount), method: pay.method || undefined }), pay.kind === "hosting" ? "Hosting diperpanjang 1 tahun" : "Pembayaran dicatat")
+              act(
+                () => api("POST", `/admin/tenants/${id}/payments`, { kind: pay.kind, amountIdr: Number(pay.amount), method: pay.method || undefined, from: pay.from }),
+                pay.kind === "hosting" ? "Hosting diperpanjang 1 tahun" : "Pembayaran dicatat",
+              )
             }
           >
-            Catat pembayaran
+            {busy ? "Menyimpan…" : "Catat pembayaran"}
           </button>
         </div>
         {d.payments.length > 0 && (
@@ -432,6 +526,9 @@ export function AdminTenant({ id, rootDomain }: { id: string; rootDomain: string
                 <th>Jenis</th>
                 <th>Nominal</th>
                 <th>Cara</th>
+                <th>
+                  <span class="sr-only">Aksi</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -441,6 +538,15 @@ export function AdminTenant({ id, rootDomain }: { id: string; rootDomain: string
                   <td data-l="Jenis">{{ setup: "Pembuatan", hosting: "Hosting", maintenance: "Maintenance", addon: "Tambahan" }[p.kind as string] ?? p.kind}</td>
                   <td data-l="Nominal">{rupiah(p.amount_idr)}</td>
                   <td data-l="Cara">{p.method ?? "–"}</td>
+                  <td data-l="">
+                    <button
+                      class="link-btn"
+                      style="color:var(--cabai)"
+                      onClick={() => confirmAction(`Hapus catatan pembayaran ${rupiah(p.amount_idr)}?`) && act(() => api("DELETE", `/admin/payments/${p.id}`), "Catatan pembayaran dihapus")}
+                    >
+                      Hapus
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -464,10 +570,13 @@ export function AdminTenant({ id, rootDomain }: { id: string; rootDomain: string
               class="btn btn-quiet"
               onClick={async () => {
                 if (!confirmAction("Buat password sementara baru? Pelanggan akan keluar dari semua perangkat.")) return;
+                setBusy(true);
                 try {
                   setTemp(await api("POST", `/admin/users/${owner.id}/reset-password`));
                 } catch (e) {
                   toast(e instanceof Error ? e.message : "Gagal", true);
+                } finally {
+                  setBusy(false);
                 }
               }}
             >
@@ -501,30 +610,104 @@ export function AdminTenant({ id, rootDomain }: { id: string; rootDomain: string
       </div>
 
       <div class="panel">
-        <div class="panel-title">Status situs</div>
-        {t.status === "active" && (
-          <button class="btn btn-danger" onClick={() => confirmAction(`Nonaktifkan ${host}? Pengunjung akan melihat halaman "situs tidak aktif".`) && act(() => api("POST", `/admin/tenants/${id}/status`, { status: "suspended" }), "Situs dinonaktifkan")}>
-            Nonaktifkan situs
+        <div class="panel-title">Alamat situs</div>
+        <TextField
+          label="Subdomain baru"
+          value={newSlug}
+          max={40}
+          placeholder={t.slug}
+          hint={newSlug ? `Situs akan pindah ke ${newSlug}.${rootDomain}. Alamat lama berhenti berfungsi.` : `Sekarang: ${host}`}
+          onInput={(v) => setNewSlug(v.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+        />
+        <div class="btn-row">
+          <button
+            class="btn btn-quiet btn-sm"
+            disabled={!newSlug || newSlug === t.slug}
+            onClick={() =>
+              confirmAction(`Ganti alamat ${host} menjadi ${newSlug}.${rootDomain}? Alamat lama tidak bisa dibuka lagi.`) &&
+              act(async () => {
+                await api("POST", `/admin/tenants/${id}/slug`, { slug: newSlug });
+                setNewSlug("");
+              }, "Alamat situs diganti")
+            }
+          >
+            Ganti alamat
           </button>
-        )}
-        {t.status === "suspended" && (
-          <button class="btn" onClick={() => act(() => api("POST", `/admin/tenants/${id}/status`, { status: "active" }), "Situs aktif kembali")}>
-            Aktifkan kembali
-          </button>
-        )}
-        {t.status === "draft" && <p class="hint">Situs akan tayang setelah Anda menekan "Terbitkan pertama kali" di halaman Kelola isi situs.</p>}
+        </div>
       </div>
-    </div>
+
+      <div class="panel">
+        <div class="panel-title">Status situs</div>
+        <div class="btn-row" style="margin-top:0">
+          {t.status === "active" && (
+            <button class="btn btn-quiet" onClick={() => confirmAction(`Nonaktifkan ${host}? Pengunjung akan melihat halaman "situs tidak aktif".`) && act(() => api("POST", `/admin/tenants/${id}/status`, { status: "suspended" }), "Situs dinonaktifkan")}>
+              Nonaktifkan situs
+            </button>
+          )}
+          {t.status === "suspended" && (
+            <button class="btn" onClick={() => act(() => api("POST", `/admin/tenants/${id}/status`, { status: "active" }), "Situs aktif kembali")}>
+              Aktifkan kembali
+            </button>
+          )}
+          <button class="btn btn-quiet" onClick={() => act(async () => download(`${t.slug}.json`, await api("GET", `/admin/tenants/${id}/export`)), "Data diekspor")}>
+            Ekspor data
+          </button>
+          <button
+            class="btn btn-danger"
+            onClick={() =>
+              confirmAction(`Hapus pelanggan ${t.businessName}? Situs langsung tidak bisa dibuka. Data masih bisa dipulihkan selama 30 hari, setelah itu dihapus permanen.`) &&
+              act(() => api("DELETE", `/admin/tenants/${id}`), "Pelanggan dihapus")
+            }
+          >
+            Hapus pelanggan
+          </button>
+        </div>
+        {t.status === "draft" && <p class="hint" style="margin-top:12px">Situs akan tayang setelah Anda menekan "Terbitkan pertama kali" di halaman Kelola isi situs.</p>}
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Aktivitas terakhir</div>
+        {audit.length === 0 ? (
+          <p class="hint">Belum ada aktivitas.</p>
+        ) : (
+          <ul style="list-style:none;padding:0;margin:0">
+            {audit.map((a) => (
+              <li style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line-2);font-size:14.5px">
+                <span>{AUDIT_LABEL[a.action] ?? a.action}</span>
+                <span class="hint" style="white-space:nowrap">{waktu(a.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </fieldset>
   );
 }
 
 // ---------- masa hosting ----------
 export function AdminHosting() {
   const [list, setList] = useState<any[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const load = () => api<any[]>("GET", "/admin/hosting/expiring?days=30").then(setList);
   useEffect(() => {
     load().catch((e) => toast(e.message, true));
   }, []);
+
+  async function renew(t: any, from: "previous_end" | "today") {
+    const start = from === "today" ? "hari ini" : tanggal(t.hostingUntil);
+    if (!confirmAction(`Catat pembayaran hosting ${rupiah(100000)} untuk ${t.businessName} dan perpanjang 1 tahun dari ${start}?`)) return;
+    setBusy(t.id);
+    try {
+      await api("POST", `/admin/tenants/${t.id}/renew`, { from });
+      toast("Hosting diperpanjang 1 tahun");
+      await load();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Gagal", true);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   if (!list) return <Loading />;
   return (
     <div class="editor-col" style="max-width:820px">
@@ -553,21 +736,14 @@ export function AdminHosting() {
                   <Icon name="copy" />
                   Salin pengingat
                 </button>
-                <button
-                  class="btn btn-sm"
-                  onClick={async () => {
-                    if (!confirmAction(`Catat pembayaran hosting ${rupiah(100000)} untuk ${t.businessName} dan perpanjang 1 tahun?`)) return;
-                    try {
-                      await api("POST", `/admin/tenants/${t.id}/renew`, {});
-                      toast("Hosting diperpanjang 1 tahun");
-                      load();
-                    } catch (e) {
-                      toast(e instanceof Error ? e.message : "Gagal", true);
-                    }
-                  }}
-                >
-                  Sudah bayar, perpanjang
+                <button class="btn btn-sm" disabled={busy === t.id} onClick={() => renew(t, "previous_end")}>
+                  {busy === t.id ? "Menyimpan…" : t.hostingState === "expired" ? "Sudah bayar, lanjutkan masa lama" : "Sudah bayar, perpanjang"}
                 </button>
+                {t.hostingState === "expired" && (
+                  <button class="btn btn-quiet btn-sm" disabled={busy === t.id} onClick={() => renew(t, "today")}>
+                    Sudah bayar, mulai hari ini
+                  </button>
+                )}
               </div>
             </div>
           ))}

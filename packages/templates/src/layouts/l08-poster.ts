@@ -21,6 +21,8 @@ export const L08: LayoutDef = {
 .p-hero .sub{font-size:1.15rem;max-width:28em;margin:22px 0 28px;opacity:.92}
 .p-hero .btn{background:var(--tx);color:var(--bg)}
 .p-sticker{display:inline-grid;place-items:center;text-align:center;width:128px;height:128px;border-radius:50%;background:var(--ac);color:var(--on-ac);font:800 .95rem/1.15 var(--fb);padding:16px;transform:rotate(-12deg);margin-bottom:18px;box-shadow:0 10px 0 -4px rgba(0,0,0,.18)}
+.p-kick{font-weight:700;font-size:1.05rem;margin-bottom:14px;max-width:32em}
+.p-hero h1{overflow-wrap:anywhere}
 .p-shot{position:relative;aspect-ratio:1;border:3px solid var(--tx);border-radius:var(--r);overflow:hidden;transform:rotate(2.5deg);background:var(--sf);box-shadow:12px 12px 0 var(--tx);max-width:520px;width:100%;justify-self:center}
 .p-shot img{width:100%;height:100%;object-fit:cover}
 .p-shot .art-stripe i:nth-child(1){background:var(--bg)}
@@ -57,9 +59,9 @@ export const L08: LayoutDef = {
 .p-info{background:var(--tx);color:var(--bg)}
 .p-info .p-h2{color:var(--p)}
 .p-info-grid{display:grid;gap:36px}
-.p-info .hours div{border-color:color-mix(in srgb,var(--bg) 20%,transparent)}
+.p-info .hours div{border-color:rgba(127,127,127,.32);border-color:color-mix(in srgb,var(--bg) 20%,transparent)}
 .p-info .contact li span{opacity:.6}
-.p-info .socials a{border-color:color-mix(in srgb,var(--bg) 30%,transparent)}
+.p-info .socials a{border-color:rgba(127,127,127,.32);border-color:color-mix(in srgb,var(--bg) 30%,transparent)}
 .p-info .btn{background:var(--p);color:var(--on-p)}
 .p-info .map{margin-top:32px}
 .p-info + .foot{border:0}
@@ -78,7 +80,11 @@ export const L08: LayoutDef = {
     const tape = [c.business.tagline ?? c.business.name, c.hero.ctaText ?? "Pesan sekarang", c.business.name, "Pesan via WhatsApp"];
     const tapeHtml = html`${[...tape, ...tape].map((t) => html`<span>${t}</span>`)}`;
     return html`${navBar(ctx, "p-nav")}<main id="top"><section class="p-hero"><div class="w p-hero-in"><div>${
-      c.business.tagline ? html`<div class="p-sticker">${c.business.tagline}</div>` : ""
+      c.business.tagline
+        ? c.business.tagline.length <= 34
+          ? html`<div class="p-sticker">${c.business.tagline}</div>`
+          : html`<p class="p-kick">${c.business.tagline}</p>`
+        : ""
     }<h1>${c.hero.title}</h1>${c.hero.subtitle ? html`<p class="sub">${c.hero.subtitle}</p>` : ""}${ctaButton(ctx) ?? ""}</div><div class="p-shot">${
       img(ctx, c.hero.imageMediaId, "", c.hero.title, true) ?? art("stripe", initial(c.business.name))
     }</div></div></section><div class="p-tape" aria-hidden="true"><div>${tapeHtml}</div></div>${

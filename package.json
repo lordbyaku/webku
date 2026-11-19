@@ -7,7 +7,7 @@
     "apps/*"
   ],
   "scripts": {
-    "test": "vitest run && npm --workspace apps/cms-worker run test",
+    "test": "vitest run && npm --workspace apps/cms-worker run test && npm --workspace apps/site-worker run test",
     "test:unit": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p apps/cms-ui/tsconfig.json",
     "dev:cms": "npm --workspace apps/cms-worker run dev",

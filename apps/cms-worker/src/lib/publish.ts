@@ -23,7 +23,7 @@ export function primaryHost(env: Env, t: TenantRow): string {
 
 export async function renderPreview(env: Env, t: TenantRow, content: Content, templateId?: string): Promise<string> {
   const media = await buildMediaInfo(env, t.id, content);
-  return renderSite(templateId ?? t.template_id, content, {
+  return renderSite(templateId ?? t.draft_template_id ?? t.template_id, content, {
     host: primaryHost(env, t),
     mediaOrigin: env.MEDIA_ORIGIN,
     media,
@@ -87,19 +87,63 @@ export async function publishTenant(
   }
   const json = o.source === "draft" ? row.draft_json : row.published_json;
   if (!json) throw new ApiError(409, "NOTHING_PUBLISHED", "Situs belum pernah diterbitkan");
+  // Terbit draf memakai desain draf (jika ada); render ulang memakai desain yang sedang tayang.
+  const templateId = o.source === "draft" ? (t.draft_template_id ?? t.template_id) : t.template_id;
 
   const ts = Date.now();
   const today = utcDate(ts);
-  const countToday = t.publish_count_date === today ? t.publish_count_day : 0;
-  if (o.enforceDailyLimit && countToday >= LIMITS.publishPerDay) {
-    throw new ApiError(429, "RATE_LIMITED", `Batas ${LIMITS.publishPerDay} kali terbit per hari tercapai, coba lagi besok`);
+  if (o.enforceDailyLimit) {
+    // Pesan jatah terbit secara atomik (aman dari permintaan bersamaan). Terbit oleh admin tidak dihitung.
+    const slot = await env.DB.prepare(
+      `UPDATE tenants SET
+         publish_count_day = CASE WHEN publish_count_date = ? THEN publish_count_day + 1 ELSE 1 END,
+         publish_count_date = ?
+       WHERE id = ? AND (publish_count_date IS NULL OR publish_count_date != ? OR publish_count_day < ?)`,
+    ).bind(today, today, tenantId, today, LIMITS.publishPerDay).run();
+    if (slot.meta.changes !== 1) {
+      throw new ApiError(429, "RATE_LIMITED", `Batas ${LIMITS.publishPerDay} kali terbit per hari tercapai, coba lagi besok`);
+    }
   }
 
   const content = JSON.parse(json) as Content;
-  const media = await buildMediaInfo(env, tenantId, content);
   const hosts = await getHostnames(env.DB, tenantId);
+  await renderToHosts(env, t, templateId, content, hosts, ts);
+
+  const stmts: D1PreparedStatement[] = [];
+  if (o.source === "draft") {
+    stmts.push(env.DB.prepare("UPDATE site_content SET published_json = draft_json WHERE tenant_id = ?").bind(tenantId));
+  }
+  stmts.push(
+    env.DB.prepare(
+      // Kolom desain hanya berubah saat menerbitkan draf; terbit ulang tidak menyentuh desain draf pelanggan.
+      `UPDATE tenants SET published_at = ?, updated_at = ?,
+         template_id = CASE WHEN ? THEN ? ELSE template_id END,
+         draft_template_id = CASE WHEN ? THEN NULL ELSE draft_template_id END,
+         status = CASE WHEN status = 'draft' THEN 'active' ELSE status END,
+         hosting_until = COALESCE(hosting_until, ?)
+       WHERE id = ?`,
+    ).bind(ts, ts, o.source === "draft" ? 1 : 0, templateId, o.source === "draft" ? 1 : 0, addOneYear(ts), tenantId),
+  );
+  stmts.push(
+    auditStmt(env.DB, { actorUserId: o.actorId, tenantId, action: o.source === "draft" ? "site.publish" : "site.republish", detail: { hosts, templateId } }),
+  );
+  try {
+    await env.DB.batch(stmts);
+  } catch (e) {
+    // Database gagal: kembalikan situs ke versi terbit sebelumnya agar situs & CMS tetap sinkron.
+    if (o.source === "draft" && row.published_json && t.status !== "draft") {
+      await renderToHosts(env, t, t.template_id, JSON.parse(row.published_json) as Content, hosts, ts).catch(() => {});
+    }
+    throw e;
+  }
+
+  return { publishedAt: ts, urls: hosts.map((h) => `https://${h}/`), purge: purgeHosts(env, hosts) };
+}
+
+async function renderToHosts(env: Env, t: TenantRow, templateId: string, content: Content, hosts: string[], ts: number): Promise<void> {
+  const media = await buildMediaInfo(env, t.id, content);
   for (const host of hosts) {
-    const files = renderSite(t.template_id, content, {
+    const files = renderSite(templateId, content, {
       host,
       mediaOrigin: env.MEDIA_ORIGIN,
       media,
@@ -108,28 +152,13 @@ export async function publishTenant(
       brandUrl: brandUrl(env),
       now: ts,
     });
-    await writeHost(env, host, files, tenantId);
+    await writeHost(env, host, files, t.id);
   }
+}
 
-  const stmts: D1PreparedStatement[] = [];
-  if (o.source === "draft") {
-    stmts.push(env.DB.prepare("UPDATE site_content SET published_json = draft_json WHERE tenant_id = ?").bind(tenantId));
-  }
-  stmts.push(
-    env.DB.prepare(
-      `UPDATE tenants SET published_at = ?, updated_at = ?,
-         status = CASE WHEN status = 'draft' THEN 'active' ELSE status END,
-         hosting_until = COALESCE(hosting_until, ?),
-         publish_count_day = ?, publish_count_date = ?
-       WHERE id = ?`,
-    ).bind(ts, ts, addOneYear(ts), countToday + 1, today, tenantId),
-  );
-  stmts.push(
-    auditStmt(env.DB, { actorUserId: o.actorId, tenantId, action: o.source === "draft" ? "site.publish" : "site.republish", detail: { hosts } }),
-  );
-  await env.DB.batch(stmts);
-
-  return { publishedAt: ts, urls: hosts.map((h) => `https://${h}/`), purge: purgeHosts(env, hosts) };
+/** Hapus semua file terbit sebuah hostname dari R2 (ganti subdomain / hapus pelanggan). */
+export async function deleteHostFiles(env: Env, host: string): Promise<void> {
+  await env.SITES.delete([`h/${host}/index.html`, `h/${host}/sitemap.xml`, `h/${host}/robots.txt`]);
 }
 
 /** Tulis halaman "situs tidak aktif" ke semua hostname tenant. */

@@ -414,3 +414,23 @@ WHERE id = ? AND media_used_bytes + ? <= media_quota_bytes;
 | Hapus permanen tenant `deleted` > 30 hari | Mingguan (cron) | Hapus objek R2 `t/{id}/*`, `h/{host}/*`, lalu baris tenant |
 
 > Cron di paket Free juga dibatasi **10 ms CPU**. Backup dan pembersihan dilakukan per batch (mis. 20 tenant per eksekusi) dan dijadwalkan beberapa kali (mis. setiap jam pada hari Minggu, memakai cursor di tabel kecil `job_state`) agar tidak melewati batas. Lihat DEVELOPMENT_PLAN Fase 6.
+
+## 8. Migrasi 0002 (19 November 2026)
+
+`migrations/0002_draft_template_media_count.sql`
+
+| Kolom baru (`tenants`) | Fungsi |
+|---|---|
+| `draft_template_id` | Desain yang dipilih tetapi **belum diterbitkan**. Saat terbit draf, nilainya disalin ke `template_id` lalu dikosongkan. Terbit ulang oleh admin tidak menyentuhnya. |
+| `media_count` | Jumlah file foto. Dicek & ditambah dalam **satu** `UPDATE` bersama `media_used_bytes`, sehingga unggahan bersamaan tidak bisa melewati batas. |
+
+Jatah terbit harian juga dipesan secara atomik (`UPDATE … WHERE publish_count_day < 30`) sebelum render; terbit oleh admin tidak dihitung.
+
+### Backup otomatis
+
+Cron tiap jam (`17 * * * *`) menjalankan `apps/cms-worker/src/lib/jobs.ts`:
+1. Hapus sesi kedaluwarsa & log audit > 1 tahun.
+2. Hapus permanen **satu** pelanggan berstatus `deleted` > 30 hari (foto R2, file situs, baris DB via `ON DELETE CASCADE`).
+3. Backup mingguan bertahap: maks. 4 potongan per jalan → `umkm-sites/backups/<runId>/<tabel>-<offset>.json`, diakhiri `_complete.json`. Disimpan 8 run terakhir. Status di `job_state` (`job = 'backup'`).
+
+Pemulihan: `node scripts/restore-backup.mjs <runId> > restore.sql` lalu `wrangler d1 execute` ke database kosong yang sudah dimigrasi.

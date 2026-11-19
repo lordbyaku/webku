@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseContent, sampleContent, type Content } from "@umkm/content-schema";
-import { TEMPLATES, renderSite, renderStatusPage, type MediaInfo } from "../src";
+import { LAYOUTS, TEMPLATES, renderSite, renderStatusPage, type MediaInfo } from "../src";
+import { LAYOUT_META } from "../src/catalog";
 
 const XSS = `"><script>alert(1)</script><img src=x onerror=alert(2)>`;
 
@@ -106,6 +107,18 @@ describe("renderSite", () => {
   it("halaman status", () => {
     expect(renderStatusPage("suspended", "DomainKu", "https://domainku.id")).toContain("tidak aktif");
     expect(renderStatusPage("not_found", "DomainKu", "https://domainku.id")).toContain("tidak ditemukan");
+  });
+});
+
+describe("katalog", () => {
+  it("LAYOUT_META sama dengan LAYOUTS", () => {
+    for (const [id, l] of Object.entries(LAYOUTS)) {
+      expect(LAYOUT_META[id]).toEqual({ id: l.id, name: l.name, products: l.products, ...(l.forceSerif ? { forceSerif: true } : {}) });
+    }
+    expect(Object.keys(LAYOUT_META).sort()).toEqual(Object.keys(LAYOUTS).sort());
+  });
+  it("setiap pasangan layout + tema unik", () => {
+    expect(new Set(TEMPLATES.map((t) => t.layout + t.theme)).size).toBe(30);
   });
 });
 

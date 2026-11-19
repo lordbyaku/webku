@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv, Env } from "./env";
 import { csrf, loadSession } from "./lib/auth";
 import { ApiError } from "./lib/http";
+import { runScheduled } from "./lib/jobs";
 import { adminRoutes } from "./routes/admin";
 import { authRoutes } from "./routes/auth";
 import { ownerRoutes } from "./routes/owner";
@@ -44,12 +45,8 @@ app.onError((err, c) => {
   return c.json({ ok: false, error: { code: "INTERNAL", message: "Terjadi kesalahan pada server" } }, 500);
 });
 
-async function scheduled(_ctrl: ScheduledController, env: Env): Promise<void> {
-  const ts = Date.now();
-  await env.DB.batch([
-    env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(ts),
-    env.DB.prepare("DELETE FROM audit_log WHERE created_at < ?").bind(ts - 365 * 86_400_000),
-  ]);
+async function scheduled(_ctrl: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  ctx.waitUntil(runScheduled(env));
 }
 
 export default {

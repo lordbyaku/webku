@@ -4,8 +4,11 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat"],
-  // Ganti domainku.id dengan domain asli sebelum deploy produksi (lihat docs/DEPLOYMENT.md)
-  "workers_dev": true,
+
+  // ===================== PRODUKSI (default `wrangler deploy`) =====================
+  // Ganti semua "domainku.id" dengan domain asli & isi database_id sebelum deploy.
+  "workers_dev": false,
+  "routes": [{ "pattern": "cms.domainku.id", "custom_domain": true }],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
@@ -13,32 +16,58 @@
     "run_worker_first": ["/api/*"]
   },
   "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "umkm-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
-      "migrations_dir": "../../migrations"
-    }
+    { "binding": "DB", "database_name": "umkm-db", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "../../migrations" }
   ],
   "r2_buckets": [
     { "binding": "SITES", "bucket_name": "umkm-sites" },
     { "binding": "MEDIA", "bucket_name": "umkm-media" }
   ],
   "vars": {
-    "ENVIRONMENT": "development",
+    "ENVIRONMENT": "production",
     "ROOT_DOMAIN": "domainku.id",
-    "CMS_ORIGIN": "http://localhost:8787",
-    "MEDIA_ORIGIN": "http://localhost:8787/api/_dev/media",
+    "CMS_ORIGIN": "https://cms.domainku.id",
+    "MEDIA_ORIGIN": "https://media.domainku.id",
     "BRAND_NAME": "DomainKu",
     "PBKDF2_ITER": "100000",
     "HOSTING_PRICE_IDR": "100000",
     "PAYMENT_INFO": "",
     "ADMIN_WA": "",
-    // Hanya dev: tautan "Buka situs" mengarah ke site-worker lokal. Hapus di produksi.
-    "SITE_URL_PATTERN": "http://{slug}.localhost:8788",
-    // Kunci uji resmi Turnstile (selalu lolos). Ganti di produksi.
-    "TURNSTILE_SITE_KEY": "1x00000000000000000000AA"
+    "TURNSTILE_SITE_KEY": "GANTI_DENGAN_SITE_KEY_TURNSTILE",
+    "ZONE_ID": ""
   },
-  "triggers": { "crons": ["0 3 * * 0"] },
-  "observability": { "enabled": true }
+  // Backup bertahap & pembersihan: setiap jam di menit ke-17.
+  "triggers": { "crons": ["17 * * * *"] },
+  "observability": { "enabled": true },
+
+  "env": {
+    // ===================== PENGEMBANGAN LOKAL (`wrangler dev --env dev`) =====================
+    "dev": {
+      "workers_dev": true,
+      "routes": [],
+      "d1_databases": [
+        { "binding": "DB", "database_name": "umkm-db", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "../../migrations" }
+      ],
+      "r2_buckets": [
+        { "binding": "SITES", "bucket_name": "umkm-sites" },
+        { "binding": "MEDIA", "bucket_name": "umkm-media" }
+      ],
+      "vars": {
+        "ENVIRONMENT": "development",
+        "ROOT_DOMAIN": "domainku.id",
+        "CMS_ORIGIN": "http://localhost:8787",
+        "MEDIA_ORIGIN": "http://localhost:8787/api/_dev/media",
+        "BRAND_NAME": "DomainKu",
+        "PBKDF2_ITER": "100000",
+        "HOSTING_PRICE_IDR": "100000",
+        "PAYMENT_INFO": "",
+        "ADMIN_WA": "",
+        // Tautan "Buka situs" mengarah ke site-worker lokal.
+        "SITE_URL_PATTERN": "http://{slug}.localhost:8788",
+        // Kunci uji resmi Turnstile (selalu lolos).
+        "TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
+        "ZONE_ID": ""
+      },
+      "triggers": { "crons": [] }
+    }
+  }
 }

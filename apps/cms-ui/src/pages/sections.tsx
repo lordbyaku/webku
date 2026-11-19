@@ -546,3 +546,26 @@ export const SECTIONS: SectionDef[] = [
   },
   { key: "google", title: "Tampilan di Google & WhatsApp", icon: "search", intro: "Judul dan gambar saat situs dibagikan.", summary: (c) => ({ text: c.seo.title ? "Diatur manual" : "Otomatis" }), Editor: SeoEditor },
 ];
+
+/** Bagian editor yang memuat sebuah jalur galat (mis. "products.items.2.name" → "produk"). */
+const PATH_TO_SECTION: Array<[string, string]> = [
+  ["business.", "pembuka"],
+  ["hero.", "pembuka"],
+  ["products.", "produk"],
+  ["contact.", "kontak"],
+  ["hours", "jam"],
+  ["about.", "tentang"],
+  ["gallery.", "galeri"],
+  ["testimonials.", "testimoni"],
+  ["social.", "sosial"],
+  ["seo.", "google"],
+];
+
+export function sectionsWithErrors(errors: Record<string, string>): SectionDef[] {
+  const keys = new Set<string>();
+  for (const path of Object.keys(errors)) {
+    const hit = PATH_TO_SECTION.find(([p]) => path.startsWith(p));
+    if (hit) keys.add(hit[1]);
+  }
+  return SECTIONS.filter((s) => keys.has(s.key));
+}

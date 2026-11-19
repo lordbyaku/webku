@@ -49,7 +49,7 @@ export const L09: LayoutDef = {
 .v-band{background:var(--p);color:var(--on-p)}
 .v-band-in{display:grid;gap:28px}
 .v-band h2{font-size:clamp(2rem,5vw,3rem)}
-.v-band .hours div{border-color:color-mix(in srgb,var(--on-p) 22%,transparent)}
+.v-band .hours div{border-color:rgba(127,127,127,.32);border-color:color-mix(in srgb,var(--on-p) 22%,transparent)}
 .v-band .contact li span{opacity:.7}
 .v-band .btn{background:var(--on-p);color:var(--p)}
 .v-band .btn-o{background:transparent;color:var(--on-p)}

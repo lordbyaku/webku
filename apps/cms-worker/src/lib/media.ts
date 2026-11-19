@@ -39,16 +39,20 @@ export async function uploadMedia(env: Env, tenantId: string, form: FormData): P
   const kind = sniffImage(bytes);
   if (!kind) throw badRequest("Format foto harus WebP, JPEG, atau PNG");
 
-  const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM media WHERE tenant_id = ?").bind(tenantId).first<{ n: number }>();
-  if ((count?.n ?? 0) >= LIMITS.mediaFiles) {
-    throw new ApiError(413, "QUOTA_EXCEEDED", `Maksimal ${LIMITS.mediaFiles} foto. Hapus foto lama terlebih dahulu.`);
-  }
+  // Pesan kuota (jumlah file & ukuran) dalam satu pernyataan atomik.
   const reserve = await env.DB.prepare(
-    "UPDATE tenants SET media_used_bytes = media_used_bytes + ? WHERE id = ? AND media_used_bytes + ? <= media_quota_bytes",
+    `UPDATE tenants SET media_used_bytes = media_used_bytes + ?, media_count = media_count + 1
+     WHERE id = ? AND media_used_bytes + ? <= media_quota_bytes AND media_count < ?`,
   )
-    .bind(bytes.length, tenantId, bytes.length)
+    .bind(bytes.length, tenantId, bytes.length, LIMITS.mediaFiles)
     .run();
-  if (reserve.meta.changes !== 1) throw new ApiError(413, "QUOTA_EXCEEDED", "Kuota penyimpanan foto penuh. Hapus foto lama terlebih dahulu.");
+  if (reserve.meta.changes !== 1) {
+    const t = await env.DB.prepare("SELECT media_count FROM tenants WHERE id = ?").bind(tenantId).first<{ media_count: number }>();
+    if ((t?.media_count ?? 0) >= LIMITS.mediaFiles) {
+      throw new ApiError(413, "QUOTA_EXCEEDED", `Maksimal ${LIMITS.mediaFiles} foto. Hapus foto lama terlebih dahulu.`);
+    }
+    throw new ApiError(413, "QUOTA_EXCEEDED", "Kuota penyimpanan foto penuh. Hapus foto lama terlebih dahulu.");
+  }
 
   const id = newId("m");
   const key = `t/${tenantId}/${id}.${kind.ext}`;
@@ -66,7 +70,7 @@ export async function uploadMedia(env: Env, tenantId: string, form: FormData): P
       .bind(row.id, row.tenant_id, row.r2_key, row.mime, row.bytes, row.width, row.height, row.alt, row.created_at)
       .run();
   } catch (e) {
-    await env.DB.prepare("UPDATE tenants SET media_used_bytes = MAX(0, media_used_bytes - ?) WHERE id = ?").bind(bytes.length, tenantId).run();
+    await env.DB.prepare("UPDATE tenants SET media_used_bytes = MAX(0, media_used_bytes - ?), media_count = MAX(0, media_count - 1) WHERE id = ?").bind(bytes.length, tenantId).run();
     await env.MEDIA.delete(key).catch(() => {});
     throw e;
   }
@@ -101,7 +105,7 @@ export async function deleteMedia(env: Env, tenantId: string, id: string, force:
   }
   await env.DB.batch([
     env.DB.prepare("DELETE FROM media WHERE id = ? AND tenant_id = ?").bind(id, tenantId),
-    env.DB.prepare("UPDATE tenants SET media_used_bytes = MAX(0, media_used_bytes - ?) WHERE id = ?").bind(m.bytes, tenantId),
+    env.DB.prepare("UPDATE tenants SET media_used_bytes = MAX(0, media_used_bytes - ?), media_count = MAX(0, media_count - 1) WHERE id = ?").bind(m.bytes, tenantId),
   ]);
   await env.MEDIA.delete(m.r2_key);
 }

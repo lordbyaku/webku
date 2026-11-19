@@ -21,7 +21,7 @@ export const L03: LayoutDef = {
 .k-copy .btn{background:var(--on-p);color:var(--p);align-self:flex-start}
 .k-visual{position:relative;min-height:220px}
 .k-visual img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.k-visual .art{background:color-mix(in srgb,var(--on-p) 12%,var(--p))}
+.k-visual .art{background:var(--p);background:color-mix(in srgb,var(--on-p) 12%,var(--p))}
 .k-visual .art i:nth-child(1){background:var(--ac)}
 .k-visual .art i:nth-child(2){background:var(--on-p);opacity:.25}
 .k-facts{display:flex;gap:10px;overflow-x:auto;padding:16px 0 4px;scrollbar-width:none}

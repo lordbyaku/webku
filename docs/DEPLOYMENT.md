@@ -57,6 +57,8 @@ Versi 1.0 · 18 November 2026 · Placeholder domain: `domainku.id`
 
 ## 5. Konfigurasi Wrangler
 
+> **Pembaruan 19 Nov 2026:** file `wrangler.jsonc` di repo kini berisi konfigurasi **produksi di bagian utama** dan konfigurasi lokal di `env.dev`. Cron menjadi `17 * * * *` (backup bertahap tiap jam). Contoh di bawah adalah rancangan awal; acuan terbaru adalah file di repo.
+
 ### 5.1 `apps/site-worker/wrangler.jsonc`
 ```jsonc
 {

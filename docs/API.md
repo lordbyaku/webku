@@ -239,3 +239,19 @@ Response 201:
 ## 7. Versi API
 
 v1 tanpa prefix versi. Perubahan yang tidak kompatibel akan memakai `/api/v2`. Karena UI dan API dideploy bersama dalam satu Worker, risiko ketidakcocokan rendah.
+
+## 8. Tambahan 19 November 2026
+
+| Method & Path | Keterangan |
+|---|---|
+| `POST /admin/tenants/:id/slug` | `{ "slug": "baru" }` — pindahkan subdomain: hostname diganti, versi terbit dirender ke alamat baru, file alamat lama dihapus |
+| `DELETE /admin/tenants/:id` | Hapus (soft): status `deleted`, akun dinonaktifkan, sesi dicabut, file situs dihapus (situs 404). Hapus permanen otomatis setelah 30 hari |
+| `POST /admin/tenants/:id/restore` | Pulihkan pelanggan terhapus → status `suspended` (pernah tayang) atau `draft` |
+| `GET /admin/tenants/:id/export` | JSON lengkap: tenant, hostname, konten draf & terbit, daftar URL foto, pembayaran |
+| `GET /admin/tenants?status=deleted` | Daftar pelanggan terhapus |
+| `POST /admin/tenants/:id/renew` | Kini menerima `"from": "today"` untuk mulai dari hari ini |
+
+Perubahan perilaku:
+- `PUT /site/template` & `PUT /admin/tenants/:id/template` menyimpan **desain draf**; tayang setelah publish. `GET /site` → `tenant.templateId` = desain draf (bila ada), `tenant.publishedTemplateId` = desain tayang; `hasUnpublishedChanges` ikut memperhitungkan desain.
+- `POST /admin/tenants/:id/payments` & `/renew` menolak pembayaran kembar (jenis & nominal sama) dalam 2 menit → `409 DUPLICATE_PAYMENT`.
+- `GET /admin/stats` menambah `lastBackupAt`.

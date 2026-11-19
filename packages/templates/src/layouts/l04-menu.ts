@@ -36,7 +36,7 @@ export const L04: LayoutDef = {
 .m-item.no-img{grid-template-columns:1fr}
 .m-line{display:flex;align-items:baseline;gap:10px}
 .m-line h3{font-size:clamp(1.2rem,2.4vw,1.45rem);line-height:1.25}
-.m-dots{flex:1;border-bottom:1.5px dotted color-mix(in srgb,var(--tx) 35%,transparent);transform:translateY(-5px);min-width:24px}
+.m-dots{flex:1;border-bottom:1.5px dotted var(--line);border-bottom:1.5px dotted color-mix(in srgb,var(--tx) 35%,transparent);transform:translateY(-5px);min-width:24px}
 .m-line .price{font-family:var(--fd);font-size:1.25rem;color:var(--pt)}
 .m-item p{color:var(--mu);font-size:.95rem;margin-top:4px;font-style:italic}
 .m-item .meta{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:8px;font-size:.88rem}

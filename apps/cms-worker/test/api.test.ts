@@ -188,6 +188,19 @@ describe("alur lengkap CMS", () => {
   it("ganti template oleh pemilik (dan bisa dikunci admin)", async () => {
     expect((await ownerA.req("PUT", "/site/template", { templateId: "kuliner-02" })).status).toBe(200);
     expect((await ownerA.req("PUT", "/site/template", { templateId: "palsu-99" })).status).toBe(400);
+    // Desain baru = draf: situs masih desain lama, CMS menandai ada perubahan belum tayang
+    let s = await ownerA.req("GET", "/site");
+    expect(s.json.data.tenant.templateId).toBe("kuliner-02");
+    expect(s.json.data.content.hasUnpublishedChanges).toBe(true);
+    expect(await (await E.SITES.get("h/warung-busri.domainku.id/index.html"))!.text()).toContain("tpl-kuliner-01");
+    // Terbit ulang oleh admin TIDAK menayangkan desain draf
+    expect((await admin.req("POST", "/admin/republish", { tenantId: tenantA })).status).toBe(200);
+    expect(await (await E.SITES.get("h/warung-busri.domainku.id/index.html"))!.text()).toContain("tpl-kuliner-01");
+    // Terbit oleh pemilik menayangkan desain baru
+    expect((await ownerA.req("POST", "/site/publish", { version: s.json.data.content.version })).status).toBe(200);
+    expect(await (await E.SITES.get("h/warung-busri.domainku.id/index.html"))!.text()).toContain("tpl-kuliner-02");
+    s = await ownerA.req("GET", "/site");
+    expect(s.json.data.content.hasUnpublishedChanges).toBe(false);
     await admin.req("PATCH", `/admin/tenants/${tenantA}`, { allowTemplateSwitch: false });
     expect((await ownerA.req("PUT", "/site/template", { templateId: "kuliner-03" })).status).toBe(403);
   });

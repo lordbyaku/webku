@@ -27,7 +27,7 @@ function securityHeaders(h: Headers, env: Env, isHtml: boolean) {
   if (isHtml) {
     h.set(
       "content-security-policy",
-      `default-src 'none'; img-src 'self' ${env.MEDIA_ORIGIN} data:; style-src 'unsafe-inline'; script-src 'none'; frame-src https://maps.google.com https://www.google.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
+      `default-src 'none'; font-src 'self'; img-src 'self' ${env.MEDIA_ORIGIN} data:; style-src 'unsafe-inline'; script-src 'none'; frame-src https://maps.google.com https://www.google.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
     );
   }
 }
@@ -69,7 +69,8 @@ export default {
     // Subdomain pelanggan & domain kustom (Fase 7) dilayani dari R2 berdasarkan hostname.
 
     const file = FILES[url.pathname];
-    if (!file) return Response.redirect(`${url.protocol}//${url.host}/`, 301);
+    // Path lain: 404 ringan (bukan redirect) agar tidak memicu permintaan Worker kedua.
+    if (!file) return new Response("Not Found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
 
     const cache = caches.default;
     const cacheKey = new Request(`https://${host}/${file}`, { method: "GET" });

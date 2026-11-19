@@ -11,7 +11,7 @@ export const L02: LayoutDef = {
   name: "Editorial",
   products: "rows",
   css: `
-.e-nav{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.e-nav{position:sticky;top:0;z-index:20;background:var(--bg);background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
 .e-hero{padding:clamp(40px,7vw,96px) 0 clamp(56px,8vw,110px)}
 .e-hero-in{display:grid;gap:clamp(36px,6vw,72px);align-items:center}
 .e-kicker{font-family:var(--fd);font-style:italic;font-size:1.15rem;color:var(--pt);margin-bottom:18px;text-transform:none}

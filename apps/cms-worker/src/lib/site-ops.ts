@@ -22,7 +22,7 @@ export async function getSiteData(c: Context<AppEnv>, tenantId: string) {
     content: {
       draft: JSON.parse(row.draft_json),
       version: row.version,
-      hasUnpublishedChanges: row.published_json !== row.draft_json,
+      hasUnpublishedChanges: row.published_json !== row.draft_json || (t.draft_template_id !== null && t.draft_template_id !== t.template_id),
       draftUpdatedAt: row.draft_updated_at,
     },
     limits: {
@@ -100,7 +100,8 @@ export async function setTemplate(c: Context<AppEnv>, tenantId: string, asAdmin:
   const t = await getTenant(c.env.DB, tenantId);
   if (!t) throw notFound("Situs");
   if (!asAdmin && t.allow_template_switch !== 1) throw new ApiError(403, "FORBIDDEN", "Penggantian template dikunci. Hubungi admin.");
-  await c.env.DB.prepare("UPDATE tenants SET template_id = ?, updated_at = ? WHERE id = ?").bind(id, Date.now(), tenantId).run();
-  await audit(c, "site.template", tenantId, { from: t.template_id, to: id });
+  // Disimpan sebagai desain draf; baru tayang (dan menggantikan template_id) saat diterbitkan.
+  await c.env.DB.prepare("UPDATE tenants SET draft_template_id = ?, updated_at = ? WHERE id = ?").bind(id === t.template_id ? null : id, Date.now(), tenantId).run();
+  await audit(c, "site.template", tenantId, { from: t.draft_template_id ?? t.template_id, to: id });
   return ok(c, { templateId: id, note: "Template baru tayang setelah Anda menekan Terbitkan" });
 }

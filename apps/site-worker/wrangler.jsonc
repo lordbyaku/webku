@@ -3,12 +3,15 @@
   "name": "umkm-site",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
-  // Produksi: aktifkan routes di bawah setelah domain dipilih (docs/DEPLOYMENT.md §4)
-  // "routes": [
-  //   { "pattern": "*.domainku.id/*", "zone_name": "domainku.id" },
-  //   { "pattern": "domainku.id/*", "zone_name": "domainku.id" }
-  // ],
-  "workers_dev": true,
+
+  // ===================== PRODUKSI (default `wrangler deploy`) =====================
+  // Ganti "domainku.id" dengan domain asli. Route `media.domainku.id/*` tanpa Worker
+  // dibuat di dashboard (docs/DEPLOYMENT.md §4).
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "*.domainku.id/*", "zone_name": "domainku.id" },
+    { "pattern": "domainku.id/*", "zone_name": "domainku.id" }
+  ],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
@@ -16,9 +19,23 @@
   },
   "r2_buckets": [{ "binding": "SITES", "bucket_name": "umkm-sites" }],
   "vars": {
-    "ENVIRONMENT": "development",
+    "ENVIRONMENT": "production",
     "ROOT_DOMAIN": "domainku.id",
-    "MEDIA_ORIGIN": "http://localhost:8787/api/_dev/media"
+    "MEDIA_ORIGIN": "https://media.domainku.id"
   },
-  "observability": { "enabled": true, "head_sampling_rate": 0.1 }
+  "observability": { "enabled": true, "head_sampling_rate": 0.1 },
+
+  "env": {
+    // ===================== PENGEMBANGAN LOKAL (`wrangler dev --env dev`) =====================
+    "dev": {
+      "workers_dev": true,
+      "routes": [],
+      "r2_buckets": [{ "binding": "SITES", "bucket_name": "umkm-sites" }],
+      "vars": {
+        "ENVIRONMENT": "development",
+        "ROOT_DOMAIN": "domainku.id",
+        "MEDIA_ORIGIN": "http://localhost:8787/api/_dev/media"
+      }
+    }
+  }
 }

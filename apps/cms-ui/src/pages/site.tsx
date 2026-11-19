@@ -1,7 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useMemo, useState } from "preact/hooks";
 import { CATEGORY_LABEL, type Category } from "@umkm/content-schema";
-import { fontFaceCss, fontStack, LAYOUTS, TEMPLATES, THEMES } from "@umkm/templates";
+import { fontFaceCss, fontStack, LAYOUT_META as LAYOUTS, TEMPLATES, THEMES } from "@umkm/templates/catalog";
 
 const SWATCH_FONTS = fontFaceCss([...new Set(Object.values(THEMES).map((t) => t.fd))]);
 import { go } from "../router";
@@ -9,7 +9,57 @@ import { useEditor } from "../editor";
 import { Icon } from "../components/Icon";
 import { LivePreview, PreviewSheet, PublishBar, SaveIndicator } from "../components/publish";
 import { tanggal, toast } from "../components/ui";
-import { SECTIONS } from "./sections";
+import { SECTIONS, sectionsWithErrors } from "./sections";
+import { useEffect } from "preact/hooks";
+
+function RecoveryNotice() {
+  const ed = useEditor();
+  if (!ed.recovery) return null;
+  return (
+    <div class="notice info" role="alert">
+      <Icon name="info" />
+      <div>
+        <b>Ada perubahan yang belum tersimpan</b>
+        Perubahan dari {new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(ed.recovery.at)} belum sempat disimpan, misalnya karena sesi berakhir.
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn btn-sm" onClick={ed.restoreRecovery}>
+            Pulihkan perubahan
+          </button>
+          <button class="btn btn-quiet btn-sm" onClick={ed.discardRecovery}>
+            Abaikan
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ErrorNotice({ current }: { current?: string }) {
+  const ed = useEditor();
+  const list = sectionsWithErrors(ed.errors);
+  if (Object.keys(ed.errors).length === 0) return null;
+  const elsewhere = list.filter((s) => s.key !== current);
+  return (
+    <div class="notice danger" role="alert">
+      <Icon name="alert" />
+      <div>
+        <b>Ada isian yang perlu diperbaiki</b>
+        Perubahan belum tersimpan sampai isian yang ditandai merah diperbaiki.
+        {elsewhere.length > 0 && (
+          <div style="margin-top:8px">
+            Periksa juga:{" "}
+            {elsewhere.map((s, i) => (
+              <>
+                {i > 0 && ", "}
+                <a href={`#${ed.base}/edit/${s.key}`}>{s.title}</a>
+              </>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function TopBar({ title, back, right }: { title: ComponentChildren; back?: string; right?: ComponentChildren }) {
   return (
@@ -102,6 +152,8 @@ export function SiteHome({ header }: { header?: ComponentChildren }) {
         <div class="with-preview">
           <div class="editor-col">
             <SiteAddress />
+            <RecoveryNotice />
+            <ErrorNotice />
             <HostingNotice />
             {ed.data.tenant.status === "suspended" && (
               <div class="notice danger">
@@ -116,6 +168,7 @@ export function SiteHome({ header }: { header?: ComponentChildren }) {
               <nav class="rows" aria-label="Bagian website">
                 {SECTIONS.map((s) => {
                   const sum = s.summary(c);
+                  const bad = sectionsWithErrors(ed.errors).some((x) => x.key === s.key);
                   return (
                     <a class="row" href={`#${ed.base}/edit/${s.key}`}>
                       <span class="row-ico">
@@ -125,8 +178,8 @@ export function SiteHome({ header }: { header?: ComponentChildren }) {
                         <span class="row-title" style="display:block">
                           {s.title}
                         </span>
-                        <span class={`row-sub${sum.warn ? " warn" : ""}`} style="display:block">
-                          {sum.text}
+                        <span class={`row-sub${sum.warn || bad ? " warn" : ""}`} style="display:block">
+                          {bad ? "Ada isian yang perlu diperbaiki" : sum.text}
                         </span>
                       </span>
                       <span class="row-chev">
@@ -185,14 +238,8 @@ export function SectionPage({ sectionKey }: { sectionKey: string }) {
               <h1>{s.title}</h1>
               <p>{s.intro}</p>
             </div>
-            {ed.errors && Object.keys(ed.errors).length > 0 && (
-              <div class="notice danger" role="alert">
-                <Icon name="alert" />
-                <div>
-                  <b>Ada isian yang perlu diperbaiki</b>Perubahan belum tersimpan sampai isian yang ditandai merah diperbaiki.
-                </div>
-              </div>
-            )}
+            <RecoveryNotice />
+            <ErrorNotice current={s.key} />
             <E />
           </div>
           <LivePreview />
@@ -222,6 +269,8 @@ export function TemplatePage() {
   const [saving, setSaving] = useState(false);
   const list = useMemo(() => (filter === "semua" ? TEMPLATES : TEMPLATES.filter((t) => t.category === filter)), [filter]);
   const locked = !ed.isAdmin && !ed.data.tenant.allowTemplateSwitch;
+  // Pratinjau desain lain hanya berlaku di halaman ini.
+  useEffect(() => () => ed.setPreviewTemplate(null), []);
 
   function choose(id: string) {
     setChosen(id);
