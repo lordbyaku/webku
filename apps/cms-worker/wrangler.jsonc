@@ -6,9 +6,9 @@
   "compatibility_flags": ["nodejs_compat"],
 
   // ===================== PRODUKSI (default `wrangler deploy`) =====================
-  // Ganti semua "domainku.id" dengan domain asli & isi database_id sebelum deploy.
+  // CMS: https://cms.rela.my.id — situs pelanggan: https://web.rela.my.id/<slug>/
   "workers_dev": false,
-  "routes": [{ "pattern": "cms.domainku.id", "custom_domain": true }],
+  "routes": [{ "pattern": "cms.rela.my.id", "custom_domain": true }],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
@@ -24,16 +24,18 @@
   ],
   "vars": {
     "ENVIRONMENT": "production",
-    "ROOT_DOMAIN": "domainku.id",
-    "CMS_ORIGIN": "https://cms.domainku.id",
-    "MEDIA_ORIGIN": "https://media.domainku.id",
+    "ROOT_DOMAIN": "web.rela.my.id",
+    "CMS_ORIGIN": "https://cms.rela.my.id",
+    "MEDIA_ORIGIN": "https://media.rela.my.id",
+    "SITE_URL_PATTERN": "https://web.rela.my.id/{slug}/",
+    "BRAND_URL": "https://web.rela.my.id",
     "BRAND_NAME": "DomainKu",
     "PBKDF2_ITER": "100000",
     "HOSTING_PRICE_IDR": "100000",
     "PAYMENT_INFO": "",
     "ADMIN_WA": "",
     "TURNSTILE_SITE_KEY": "GANTI_DENGAN_SITE_KEY_TURNSTILE",
-    "ZONE_ID": ""
+    "ZONE_ID": "175cbe991c9e8e9486b04f2dc935a643"
   },
   // Backup bertahap & pembersihan: setiap jam di menit ke-17.
   "triggers": { "crons": ["17 * * * *"] },
@@ -54,7 +56,8 @@
       ],
       "vars": {
         "ENVIRONMENT": "staging",
-        "ROOT_DOMAIN": "domainku.id",
+        "ROOT_DOMAIN": "web.rela.my.id",
+        "BRAND_URL": "https://umkm-site-staging.SUBDOMAIN.workers.dev",
         "CMS_ORIGIN": "https://umkm-cms-staging.SUBDOMAIN.workers.dev",
         "MEDIA_ORIGIN": "https://umkm-cms-staging.SUBDOMAIN.workers.dev/api/_dev/media",
         "SITE_URL_PATTERN": "https://umkm-site-staging.SUBDOMAIN.workers.dev/{slug}/",
@@ -90,8 +93,9 @@
         "HOSTING_PRICE_IDR": "100000",
         "PAYMENT_INFO": "",
         "ADMIN_WA": "",
-        // Tautan "Buka situs" mengarah ke site-worker lokal.
-        "SITE_URL_PATTERN": "http://{slug}.localhost:8788",
+        // Situs pelanggan lokal: http://localhost:8788/<slug>/
+        "SITE_URL_PATTERN": "http://localhost:8788/{slug}/",
+        "BRAND_URL": "http://localhost:8788",
         // Kunci uji resmi Turnstile (selalu lolos).
         "TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
         "ZONE_ID": ""

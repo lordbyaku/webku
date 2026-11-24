@@ -6,7 +6,7 @@
 | Tanggal | 18 November 2026 |
 | Pemilik produk | Anda (penyedia jasa) |
 | Status | Menunggu persetujuan |
-| Domain utama | **Belum dipilih** — di seluruh dokumen ditulis `domainku.id` sebagai placeholder |
+| Alamat | **Diputuskan 24 Nov 2026:** landing & situs pelanggan di `web.rela.my.id/<nama-usaha>/`, CMS di `cms.rela.my.id`, foto di `media.rela.my.id` (zona `rela.my.id`, akun Cloudflare haritrisna). Dokumen lama yang menyebut `domainku.id`/subdomain per pelanggan adalah rancangan awal. |
 
 ---
 
@@ -98,7 +98,7 @@ Harga di landing hanya ditulis "mulai dari", tanpa tabel paket. Tombol utama mem
 
 | ID | Kebutuhan | Prioritas |
 |---|---|---|
-| FR-S01 | Situs tayang di `https://{slug}.domainku.id` dengan HTTPS otomatis | Wajib |
+| FR-S01 | Situs tayang di `https://web.rela.my.id/{slug}/` dengan HTTPS otomatis; domain milik pelanggan (Fase 7) bisa ditambahkan dan melayani situs yang sama | Wajib |
 | FR-S02 | Situs berupa satu halaman (one-page) dengan section: Hero, Tentang, Produk/Layanan, Galeri, Testimoni, Jam Buka, Kontak, Lokasi (Google Maps), Media Sosial | Wajib |
 | FR-S03 | Section yang kosong / dinonaktifkan otomatis tidak ditampilkan | Wajib |
 | FR-S04 | Tombol WhatsApp melayang (floating) dengan pesan otomatis | Wajib |

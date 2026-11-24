@@ -5,10 +5,9 @@ import type { Env } from "../env";
 import { auditStmt } from "./audit";
 import { ApiError, notFound } from "./http";
 import { getContentRow, getHostnames, getTenant, mediaMapFor, type TenantRow } from "./repo";
+import { brandUrl, internalHost, publicUrlForHost, siteUrl } from "./urls";
 
-export function brandUrl(env: Env): string {
-  return `https://${env.ROOT_DOMAIN}`;
-}
+export { brandUrl };
 
 export async function buildMediaInfo(env: Env, tenantId: string, content: Content): Promise<Map<string, MediaInfo>> {
   const rows = await mediaMapFor(env.DB, tenantId, collectMediaIds(content));
@@ -18,13 +17,14 @@ export async function buildMediaInfo(env: Env, tenantId: string, content: Conten
 }
 
 export function primaryHost(env: Env, t: TenantRow): string {
-  return `${t.slug}.${env.ROOT_DOMAIN}`;
+  return internalHost(env, t.slug);
 }
 
 export async function renderPreview(env: Env, t: TenantRow, content: Content, templateId?: string): Promise<string> {
   const media = await buildMediaInfo(env, t.id, content);
   return renderSite(templateId ?? t.draft_template_id ?? t.template_id, content, {
     host: primaryHost(env, t),
+    publicUrl: siteUrl(env, t.slug),
     mediaOrigin: env.MEDIA_ORIGIN,
     media,
     showBranding: t.show_branding === 1,
@@ -45,10 +45,15 @@ async function writeHost(env: Env, host: string, files: { html: string; sitemap:
   ]);
 }
 
-/** Hapus cache edge (best-effort). TTL 300 dtk tetap menjamin pembaruan jika gagal. */
-export async function purgeHosts(env: Env, hosts: string[]): Promise<void> {
-  if (!env.CF_PURGE_TOKEN || !env.ZONE_ID || hosts.length === 0) return;
-  const files = hosts.flatMap((h) => [`https://${h}/`, `https://${h}/sitemap.xml`, `https://${h}/robots.txt`]);
+/** URL publik dasar (diakhiri "/") untuk semua hostname tersimpan sebuah pelanggan. */
+export function publicBases(env: Env, slug: string, hosts: string[]): string[] {
+  return hosts.map((h) => publicUrlForHost(env, slug, h));
+}
+
+/** Hapus cache edge (best-effort) untuk URL publik dasar. TTL 300 dtk tetap menjamin pembaruan jika gagal. */
+export async function purgeUrls(env: Env, bases: string[]): Promise<void> {
+  if (!env.CF_PURGE_TOKEN || !env.ZONE_ID || bases.length === 0) return;
+  const files = bases.flatMap((b) => [b, `${b}sitemap.xml`, `${b}robots.txt`]);
   try {
     await fetch(`https://api.cloudflare.com/client/v4/zones/${env.ZONE_ID}/purge_cache`, {
       method: "POST",
@@ -137,7 +142,8 @@ export async function publishTenant(
     throw e;
   }
 
-  return { publishedAt: ts, urls: hosts.map((h) => `https://${h}/`), purge: purgeHosts(env, hosts) };
+  const bases = publicBases(env, t.slug, hosts);
+  return { publishedAt: ts, urls: bases, purge: purgeUrls(env, bases) };
 }
 
 async function renderToHosts(env: Env, t: TenantRow, templateId: string, content: Content, hosts: string[], ts: number): Promise<void> {
@@ -145,6 +151,7 @@ async function renderToHosts(env: Env, t: TenantRow, templateId: string, content
   for (const host of hosts) {
     const files = renderSite(templateId, content, {
       host,
+      publicUrl: publicUrlForHost(env, t.slug, host),
       mediaOrigin: env.MEDIA_ORIGIN,
       media,
       showBranding: t.show_branding === 1,
@@ -164,9 +171,10 @@ export async function deleteHostFiles(env: Env, host: string): Promise<void> {
 /** Tulis halaman "situs tidak aktif" ke semua hostname tenant. */
 export async function writeSuspendedPages(env: Env, tenantId: string): Promise<{ purge: Promise<void> }> {
   const hosts = await getHostnames(env.DB, tenantId, false);
+  const t = await env.DB.prepare("SELECT slug FROM tenants WHERE id = ?").bind(tenantId).first<{ slug: string }>();
   const page = renderStatusPage("suspended", env.BRAND_NAME, brandUrl(env));
   for (const host of hosts) {
     await writeHost(env, host, { html: page, sitemap: "", robots: "User-agent: *\nDisallow: /\n" }, tenantId, 503);
   }
-  return { purge: purgeHosts(env, hosts) };
+  return { purge: purgeUrls(env, t ? publicBases(env, t.slug, hosts) : []) };
 }

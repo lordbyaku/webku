@@ -34,19 +34,27 @@ Catatan staging: Turnstile memakai kunci uji (selalu lolos) dan foto dilayani le
 
 ---
 
-## B. Produksi
+## B. Produksi (rela.my.id)
 
-### B1. Domain & konfigurasi (sekali)
-- [ ] Beli domain; di dashboard Cloudflare **Add a site** (paket Free) → ubah nameserver di registrar → tunggu status *Active*
-- [ ] Catat **Zone ID** (halaman Overview domain)
-- [ ] Turnstile → Add widget → hostname `cms.<domain>`, mode *Managed* → catat **site key** & **secret**
-- [ ] Isi konfigurasi:
+Alamat sudah dikonfigurasi di `wrangler.jsonc`:
+
+| Fungsi | Alamat | Cara terpasang |
+|---|---|---|
+| Landing + situs pelanggan | `https://web.rela.my.id/<slug>/` | Workers Custom Domain (otomatis saat deploy) |
+| CMS | `https://cms.rela.my.id` | Workers Custom Domain (otomatis saat deploy) |
+| Foto | `https://media.rela.my.id` | R2 Custom Domain (dashboard) |
+
+Tidak memakai DNS wildcard, sehingga `rela.my.id`, `www`, `pos` dan subdomain lain tidak tersentuh. Domain milik pelanggan (Fase 7) ditambahkan per pelanggan lewat Cloudflare for SaaS dan dilayani Worker yang sama.
+
+### B1. Merek & kunci
+- [ ] **Turnstile → Add widget**: hostname `cms.rela.my.id`, mode *Managed* → catat site key & secret
+- [ ] Isi merek & kontak:
   ```bash
-  node scripts/configure-domain.mjs --domain <domain> --brand "<Merek>" --wa 628xxxxxxxxxx --payment "Transfer BCA 123 a.n. ..." --turnstile-site-key <site-key> --zone-id <zone-id>
+  node scripts/configure-domain.mjs --brand "<Merek>" --wa 628xxxxxxxxxx --payment "Transfer BCA 123 a.n. ..." --turnstile-site-key <site-key>
   ```
 
 ### B2. Sumber daya & rahasia
-- [ ] `node scripts/setup-cloudflare.mjs --production` (D1, R2, migrasi)
+- [ ] `node scripts/setup-cloudflare.mjs --production` (D1 `umkm-db`, R2 `umkm-sites` & `umkm-media`, migrasi)
 - [ ] Rahasia (dari `apps/cms-worker`):
   ```bash
   npx wrangler secret put TURNSTILE_SECRET
@@ -54,18 +62,15 @@ Catatan staging: Turnstile memakai kunci uji (selalu lolos) dan foto dilayani le
   ```bash
   npx wrangler secret put CF_PURGE_TOKEN
   ```
-  (`CF_PURGE_TOKEN` opsional: API token dengan izin *Zone → Cache Purge* hanya untuk domain ini.)
-- [ ] `node scripts/setup-cloudflare.mjs --production --deploy`
+  (`CF_PURGE_TOKEN` opsional: API token izin *Zone → Cache Purge* untuk zona rela.my.id.)
+- [ ] `node scripts/setup-cloudflare.mjs --production --deploy` → membuat `web.rela.my.id` & `cms.rela.my.id`
 - [ ] Commit `database_id` produksi
 
 ### B3. Dashboard Cloudflare
-- [ ] **DNS**: `AAAA *` → `100::` (Proxied) dan `AAAA @` → `100::` (Proxied)
-- [ ] **R2 → umkm-media → Settings → Custom Domains** → `media.<domain>`. Jangan aktifkan r2.dev
-- [ ] **Workers Routes** → tambah route `media.<domain>/*` dengan Worker **None**
-- [ ] **Rules → Transform Rules → Response headers** (hostname `media.<domain>`): `X-Content-Type-Options: nosniff`
-- [ ] **Security → WAF → Rate limiting rules**: path `/api/auth/login` di `cms.<domain>` → batasi per IP (mis. 5 per 10 detik) → Block
-- [ ] **SSL/TLS**: Full (strict), Always Use HTTPS, Minimum TLS 1.2
-- [ ] (Disarankan) **Zero Trust → Access**: lindungi `cms.<domain>/admin*` dan `/api/admin*` dengan email OTP
+- [ ] **R2 → umkm-media → Settings → Custom Domains** → `media.rela.my.id`. Jangan aktifkan r2.dev
+- [ ] **Rules → Transform Rules → Response headers** (hostname `media.rela.my.id`): `X-Content-Type-Options: nosniff`
+- [ ] **Security → WAF → Rate limiting rules**: host `cms.rela.my.id` + path `/api/auth/login` → batasi per IP → Block
+- [ ] (Disarankan) **Zero Trust → Access**: lindungi `cms.rela.my.id/admin*` & `/api/admin*` dengan email OTP
 
 ### B4. Akun admin produksi
 ```bash
@@ -77,11 +82,12 @@ cd apps/cms-worker && npx wrangler d1 execute umkm-db --remote --file ../../../a
 Hapus `admin.sql` setelahnya.
 
 ### B5. Verifikasi
-- [ ] `https://<domain>` → landing page dengan merek & nomor WA Anda
-- [ ] `https://cms.<domain>` → login admin (widget Turnstile muncul bila perlu)
-- [ ] Buat pelanggan uji → terbitkan → `https://<subdomain>.<domain>` tampil, huruf & foto OK
-- [ ] `https://tidak-ada.<domain>` → halaman "Situs tidak ditemukan"
-- [ ] `curl -I https://media.<domain>/<kunci-foto>` dilayani R2 (bukan Worker)
+- [ ] `https://web.rela.my.id` → landing page dengan merek & nomor WA Anda
+- [ ] `https://cms.rela.my.id` → login admin
+- [ ] Buat pelanggan uji → terbitkan → `https://web.rela.my.id/<slug>/` tampil, huruf & foto OK
+- [ ] `https://web.rela.my.id/tidak-ada/` → halaman "Situs tidak ditemukan"
+- [ ] `rela.my.id`, `www.rela.my.id`, `pos.rela.my.id` tetap normal
+- [ ] `curl -I https://media.rela.my.id/<kunci-foto>` dilayani R2
 - [ ] Ubah konten → Terbitkan → tampil ≤ 5 menit (atau segera bila `CF_PURGE_TOKEN` diset)
 - [ ] Nonaktifkan lalu hapus pelanggan uji
 

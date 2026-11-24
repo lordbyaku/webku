@@ -134,10 +134,10 @@ if (STAGING) {
   const sub = /https:\/\/umkm-(?:cms|site)-staging\.([a-z0-9-]+)\.workers\.dev/.exec(cmsOut + siteOut)?.[1];
   if (!sub) throw new Error("Tidak bisa membaca subdomain workers.dev dari output deploy");
   const cfgs = [path.join(CMS, "wrangler.jsonc"), path.join(SITE, "wrangler.jsonc")];
-  const needs = cfgs.some((f) => fs.readFileSync(f, "utf8").includes(".SUBDOMAIN.workers.dev"));
+  const needs = cfgs.some((f) => fs.readFileSync(f, "utf8").includes("SUBDOMAIN.workers.dev"));
   if (needs) {
     step(`Mengisi URL staging (*.${sub}.workers.dev) & deploy ulang`);
-    for (const f of cfgs) editBlock(f, (s) => s.replaceAll(".SUBDOMAIN.workers.dev", `.${sub}.workers.dev`));
+    for (const f of cfgs) editBlock(f, (s) => s.replaceAll("SUBDOMAIN.workers.dev", `${sub}.workers.dev`));
     wrangler(["deploy", ...ENV], { cwd: SITE });
     cmsOut = wrangler(["deploy", ...ENV], { cwd: CMS });
   }

@@ -24,7 +24,7 @@ export interface SiteData {
     publishedAt: number | null;
     hosting: { until: number | null; state: "none" | "ok" | "expiring_30" | "expiring_7" | "expired" };
   };
-  urls: { site: string; hostnames: string[] };
+  urls: { site: string; all: string[] };
   content: { draft: Content; version: number; hasUnpublishedChanges: boolean };
   limits: { products: number; gallery: number; testimonials: number; mediaFiles: number; mediaBytes: number; mediaUsedBytes: number; publishPerDay: number; publishUsedToday: number };
   contactAdminWa: string | null;

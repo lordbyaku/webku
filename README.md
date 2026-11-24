@@ -56,7 +56,7 @@ npm run dev:site
 ```
 
 - API CMS: `http://localhost:8787/api` (header wajib untuk method tulis: `Origin: http://localhost:8787` dan `X-CMS: 1`)
-- Situs publik: `http://<slug>.localhost:8788/` (atau header `X-Dev-Host: <slug>.domainku.id`) — hanya aktif di `env.dev`
+- Situs publik: `http://localhost:8788/<slug>/` (sama seperti produksi `https://web.rela.my.id/<slug>/`)
 - Landing page: `http://localhost:8788/`
 
 ## Tes

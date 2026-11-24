@@ -3,6 +3,7 @@ import type { AppEnv, Env } from "./env";
 import { csrf, loadSession } from "./lib/auth";
 import { ApiError } from "./lib/http";
 import { runScheduled } from "./lib/jobs";
+import { brandUrl, siteUrl } from "./lib/urls";
 import { adminRoutes } from "./routes/admin";
 import { authRoutes } from "./routes/auth";
 import { ownerRoutes } from "./routes/owner";
@@ -19,7 +20,7 @@ app.use("/api/*", async (c, next) => {
 app.use("/api/*", csrf, loadSession);
 
 app.get("/api/config", (c) =>
-  c.json({ ok: true, data: { turnstileSiteKey: c.env.TURNSTILE_SITE_KEY, rootDomain: c.env.ROOT_DOMAIN, brandName: c.env.BRAND_NAME, mediaOrigin: c.env.MEDIA_ORIGIN } }),
+  c.json({ ok: true, data: { turnstileSiteKey: c.env.TURNSTILE_SITE_KEY, rootDomain: c.env.ROOT_DOMAIN, siteUrlPattern: siteUrl(c.env, "{slug}"), brandName: c.env.BRAND_NAME, brandUrl: brandUrl(c.env), mediaOrigin: c.env.MEDIA_ORIGIN } }),
 );
 app.route("/api/auth", authRoutes);
 app.route("/api/admin", adminRoutes);

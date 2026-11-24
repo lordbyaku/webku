@@ -15,8 +15,10 @@ export interface Env {
   ADMIN_WA: string;
   TURNSTILE_SITE_KEY: string;
   ZONE_ID?: string;
-  /** Hanya untuk dev, mis. "http://{slug}.localhost:8788" */
+  /** URL publik situs pelanggan, mis. "https://web.rela.my.id/{slug}/" (mode path). */
   SITE_URL_PATTERN?: string;
+  /** Alamat landing page / merek, mis. "https://web.rela.my.id". */
+  BRAND_URL?: string;
 
   // rahasia
   TURNSTILE_SECRET: string;

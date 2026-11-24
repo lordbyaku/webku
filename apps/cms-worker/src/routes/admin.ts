@@ -9,7 +9,8 @@ import { audit, auditStmt, clientIp } from "../lib/audit";
 import { requireAdmin, requireAuth } from "../lib/auth";
 import { ApiError, badRequest, notFound, ok, readJson, str } from "../lib/http";
 import { deleteMedia, listMedia, mediaDto, uploadMedia } from "../lib/media";
-import { deleteHostFiles, purgeHosts, publishTenant, writeSuspendedPages } from "../lib/publish";
+import { deleteHostFiles, publicBases, publishTenant, purgeUrls, writeSuspendedPages } from "../lib/publish";
+import { displayUrl, internalHost, siteUrl } from "../lib/urls";
 import { getHostnames, getTenant, tenantDto, type TenantRow } from "../lib/repo";
 import { lastBackupAt } from "../lib/jobs";
 import { getSiteData, previewSite, publishSite, saveContent, setTemplate } from "../lib/site-ops";
@@ -87,7 +88,7 @@ adminRoutes.post("/tenants", async (c) => {
   const userId = newId("u");
   const tempPassword = generateTempPassword();
   const pw = await hashPassword(tempPassword, Number(c.env.PBKDF2_ITER) || 100_000);
-  const host = `${slug}.${c.env.ROOT_DOMAIN}`;
+  const host = internalHost(c.env, slug);
   const db = c.env.DB;
   await db.batch([
     db.prepare(
@@ -108,12 +109,12 @@ adminRoutes.post("/tenants", async (c) => {
     auditStmt(db, { actorUserId: c.get("user").id, tenantId, action: "admin.tenant_create", detail: { slug, username }, ip: clientIp(c) }),
   ]);
 
-  const siteUrl = `https://${host}`;
+  const url = siteUrl(c.env, slug);
   const message =
     `Halo ${businessName}, website Anda sudah siap!\n\n` +
-    `Alamat website: ${siteUrl}\nHalaman edit (CMS): ${c.env.CMS_ORIGIN}\nUsername: ${username}\nPassword sementara: ${tempPassword}\n\n` +
+    `Alamat website: ${displayUrl(url)}\nHalaman edit (CMS): ${displayUrl(c.env.CMS_ORIGIN)}\nUsername: ${username}\nPassword sementara: ${tempPassword}\n\n` +
     `Saat login pertama Anda akan diminta membuat password baru. Simpan password Anda baik-baik.`;
-  return ok(c, { tenantId, siteUrl, cmsUrl: c.env.CMS_ORIGIN, username, temporaryPassword: tempPassword, waMessage: message }, 201);
+  return ok(c, { tenantId, siteUrl: url, cmsUrl: c.env.CMS_ORIGIN, username, temporaryPassword: tempPassword, waMessage: message }, 201);
 });
 
 adminRoutes.get("/tenants/:id", async (c) => {
@@ -214,8 +215,8 @@ adminRoutes.post("/tenants/:id/slug", async (c) => {
   if (await c.env.DB.prepare("SELECT 1 FROM tenants WHERE slug = ?").bind(slug).first()) {
     throw new ApiError(409, "SLUG_TAKEN", "Subdomain sudah dipakai", { fields: { slug: "Subdomain sudah dipakai" } });
   }
-  const oldHost = `${t.slug}.${c.env.ROOT_DOMAIN}`;
-  const newHost = `${slug}.${c.env.ROOT_DOMAIN}`;
+  const oldHost = internalHost(c.env, t.slug);
+  const newHost = internalHost(c.env, slug);
   const ts = Date.now();
   await c.env.DB.batch([
     c.env.DB.prepare("UPDATE tenants SET slug = ?, updated_at = ? WHERE id = ?").bind(slug, ts, t.id),
@@ -231,8 +232,8 @@ adminRoutes.post("/tenants/:id/slug", async (c) => {
     await writeSuspendedPages(c.env, t.id);
   }
   await deleteHostFiles(c.env, oldHost);
-  c.executionCtx.waitUntil(purgeHosts(c.env, [oldHost]));
-  return ok(c, { slug, siteUrl: `https://${newHost}` });
+  c.executionCtx.waitUntil(purgeUrls(c.env, [siteUrl(c.env, t.slug)]));
+  return ok(c, { slug, siteUrl: siteUrl(c.env, slug) });
 });
 
 adminRoutes.delete("/tenants/:id", async (c) => {
@@ -247,7 +248,7 @@ adminRoutes.delete("/tenants/:id", async (c) => {
   ]);
   // Situs langsung tidak bisa dibuka (halaman "situs tidak ditemukan").
   for (const h of hosts) await deleteHostFiles(c.env, h);
-  c.executionCtx.waitUntil(purgeHosts(c.env, hosts));
+  c.executionCtx.waitUntil(purgeUrls(c.env, publicBases(c.env, t.slug, hosts)));
   return ok(c, { deletedAt: ts, purgeAfter: ts + 30 * DAY_MS });
 });
 
@@ -476,7 +477,7 @@ adminRoutes.get("/hosting/expiring", async (c) => {
     c,
     r.results.map((t) => {
       const expired = (t.hosting_until ?? 0) <= Date.now();
-      const host = `${t.slug}.${c.env.ROOT_DOMAIN}`;
+      const host = displayUrl(siteUrl(c.env, t.slug));
       const tgl = formatTanggalWIB(t.hosting_until!);
       const waReminderText =
         `Halo ${t.business_name}, ` +

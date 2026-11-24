@@ -2,6 +2,8 @@ export const RESERVED_SLUGS = new Set([
   "www", "cms", "admin", "api", "media", "assets", "static", "cdn", "mail", "email", "smtp", "ftp",
   "app", "dev", "staging", "test", "demo", "status", "help", "support", "docs", "blog", "billing",
   "login", "auth", "root", "ns1", "ns2", "_tpl", "fallback", "cname",
+  // bentrok dengan path di web.rela.my.id / subdomain yang sudah dipakai
+  "favicon", "robots", "sitemap", "index", "landing", "fonts", "web", "pos", "rela",
 ]);
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,38})[a-z0-9]$/;

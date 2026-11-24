@@ -7,7 +7,8 @@ import type { AppEnv } from "../env";
 import { audit } from "./audit";
 import { ApiError, badRequest, notFound, ok, readJson } from "./http";
 import { foreignMediaIds, getContentRow, getHostnames, getTenant, saveDraft, tenantDto } from "./repo";
-import { publishTenant, renderPreview } from "./publish";
+import { publicBases, publishTenant, renderPreview } from "./publish";
+import { siteUrl } from "./urls";
 
 export async function getSiteData(c: Context<AppEnv>, tenantId: string) {
   const t = await getTenant(c.env.DB, tenantId);
@@ -18,7 +19,7 @@ export async function getSiteData(c: Context<AppEnv>, tenantId: string) {
   const today = new Date().toISOString().slice(0, 10);
   return {
     tenant: { ...tenantDto(t), hosting: { until: t.hosting_until, state: hostingState(t.hosting_until) } },
-    urls: { site: c.env.SITE_URL_PATTERN ? c.env.SITE_URL_PATTERN.replace("{slug}", t.slug) : `https://${t.slug}.${c.env.ROOT_DOMAIN}`, hostnames: hosts },
+    urls: { site: siteUrl(c.env, t.slug), all: publicBases(c.env, t.slug, hosts) },
     content: {
       draft: JSON.parse(row.draft_json),
       version: row.version,

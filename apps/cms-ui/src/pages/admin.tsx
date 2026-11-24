@@ -2,7 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { CATEGORIES, CATEGORY_LABEL, type Category } from "@umkm/content-schema";
 import { TEMPLATES } from "@umkm/templates/catalog";
-import { api, ApiError } from "../api";
+import { api, ApiError, displayUrl, siteUrlFor } from "../api";
 import { Icon } from "../components/Icon";
 import { confirmAction, copyText, Loading, rupiah, tanggal, TextField, toast } from "../components/ui";
 import { go } from "../router";
@@ -210,7 +210,7 @@ function slugify(s: string) {
   return s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "");
 }
 
-export function AdminNew({ rootDomain }: { rootDomain: string }) {
+export function AdminNew() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
@@ -279,7 +279,7 @@ export function AdminNew({ rootDomain }: { rootDomain: string }) {
           value={s}
           max={40}
           error={fields.slug}
-          hint={s ? `Situs akan tayang di ${s}.${rootDomain}` : "Huruf kecil, angka, dan tanda hubung."}
+          hint={s ? `Situs akan tayang di ${displayUrl(siteUrlFor(s))}` : "Huruf kecil, angka, dan tanda hubung."}
           onInput={(v) => (setSlugTouched(true), setSlug(v.toLowerCase().replace(/[^a-z0-9-]/g, "")))}
         />
         <div class="field" style="margin-top:18px">
@@ -368,7 +368,7 @@ function download(name: string, data: unknown) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function AdminTenant({ id, rootDomain }: { id: string; rootDomain: string }) {
+export function AdminTenant({ id }: { id: string }) {
   const [d, setD] = useState<any>(null);
   const [audit, setAudit] = useState<any[]>([]);
   const [temp, setTemp] = useState<{ username: string; temporaryPassword: string } | null>(null);
@@ -407,7 +407,7 @@ export function AdminTenant({ id, rootDomain }: { id: string; rootDomain: string
   if (!d) return <Loading />;
   const t: TenantDto & { status: string } = d.tenant;
   const owner = d.users[0];
-  const host = `${t.slug}.${rootDomain}`;
+  const host = displayUrl(siteUrlFor(t.slug));
   const locked = owner?.locked_until && owner.locked_until > Date.now();
   const deleted = t.status === "deleted";
 
@@ -436,7 +436,7 @@ export function AdminTenant({ id, rootDomain }: { id: string; rootDomain: string
         <div>
           <h1>{t.businessName}</h1>
           <p>
-            <a href={`https://${host}`} target="_blank" rel="noopener">
+            <a href={siteUrlFor(t.slug)} target="_blank" rel="noopener">
               {host}
             </a>
           </p>
@@ -616,7 +616,7 @@ export function AdminTenant({ id, rootDomain }: { id: string; rootDomain: string
           value={newSlug}
           max={40}
           placeholder={t.slug}
-          hint={newSlug ? `Situs akan pindah ke ${newSlug}.${rootDomain}. Alamat lama berhenti berfungsi.` : `Sekarang: ${host}`}
+          hint={newSlug ? `Situs akan pindah ke ${displayUrl(siteUrlFor(newSlug))}. Alamat lama berhenti berfungsi.` : `Sekarang: ${host}`}
           onInput={(v) => setNewSlug(v.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
         />
         <div class="btn-row">
@@ -624,7 +624,7 @@ export function AdminTenant({ id, rootDomain }: { id: string; rootDomain: string
             class="btn btn-quiet btn-sm"
             disabled={!newSlug || newSlug === t.slug}
             onClick={() =>
-              confirmAction(`Ganti alamat ${host} menjadi ${newSlug}.${rootDomain}? Alamat lama tidak bisa dibuka lagi.`) &&
+              confirmAction(`Ganti alamat ${host} menjadi ${displayUrl(siteUrlFor(newSlug))}? Alamat lama tidak bisa dibuka lagi.`) &&
               act(async () => {
                 await api("POST", `/admin/tenants/${id}/slug`, { slug: newSlug });
                 setNewSlug("");

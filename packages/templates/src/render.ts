@@ -8,7 +8,10 @@ import { getTemplate } from "./registry";
 import { THEMES, themeVars, type Theme } from "./themes";
 
 export interface RenderOptions {
+  /** kunci internal situs (mis. "toko.web.rela.my.id") */
   host: string;
+  /** URL publik situs, diakhiri "/" (mis. "https://web.rela.my.id/toko/"). Default: https://<host>/ */
+  publicUrl?: string;
   mediaOrigin: string;
   media: Map<string, MediaInfo>;
   showBranding: boolean;
@@ -82,7 +85,7 @@ export function renderSite(templateId: string, content: Content, opts: RenderOpt
     brandUrl: opts.brandUrl,
   };
 
-  const url = `https://${opts.host}/`;
+  const url = opts.publicUrl ?? `https://${opts.host}/`;
   const title = content.seo.title ?? clip(content.business.tagline ? `${content.business.name} — ${content.business.tagline}` : content.business.name, 70);
   const description = content.seo.description ?? clip(content.hero.subtitle ?? content.about.body ?? content.business.name, 160);
   const ogImage = mediaUrl(ctx, content.seo.ogImageMediaId) ?? mediaUrl(ctx, content.hero.imageMediaId) ?? mediaUrl(ctx, content.business.logoMediaId);
@@ -104,7 +107,7 @@ export function renderSite(templateId: string, content: Content, opts: RenderOpt
 
   const lastmod = new Date(opts.now ?? Date.now()).toISOString().slice(0, 10);
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${escapeHtml(url)}</loc><lastmod>${lastmod}</lastmod></url></urlset>\n`;
-  const robots = `User-agent: *\nAllow: /\nSitemap: https://${opts.host}/sitemap.xml\n`;
+  const robots = `User-agent: *\nAllow: /\nSitemap: ${url}sitemap.xml\n`;
   return { html: doc.value, sitemap, robots };
 }
 

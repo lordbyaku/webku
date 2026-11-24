@@ -44,8 +44,8 @@ jobs:
       - name: Tolak deploy produksi bila domain belum diisi
         if: inputs.target == 'production'
         run: |
-          if sed -n '1,/"env": {/p' apps/cms-worker/wrangler.jsonc | grep -q "domainku.id"; then
-            echo "Domain produksi belum dikonfigurasi (scripts/configure-domain.mjs)"; exit 1
+          if sed -n '1,/"env": {/p' apps/cms-worker/wrangler.jsonc | grep -qE "domainku.id|GANTI_DENGAN"; then
+            echo "Konfigurasi produksi belum lengkap (scripts/configure-domain.mjs)"; exit 1
           fi
       - name: Migrasi database
         working-directory: apps/cms-worker

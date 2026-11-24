@@ -5,6 +5,7 @@ import { fontFaceCss, fontStack, LAYOUT_META as LAYOUTS, TEMPLATES, THEMES } fro
 
 const SWATCH_FONTS = fontFaceCss([...new Set(Object.values(THEMES).map((t) => t.fd))]);
 import { go } from "../router";
+import { displayUrl } from "../api";
 import { useEditor } from "../editor";
 import { Icon } from "../components/Icon";
 import { LivePreview, PreviewSheet, PublishBar, SaveIndicator } from "../components/publish";
@@ -94,7 +95,7 @@ function HostingNotice() {
         {msg}
         {wa && !ed.isAdmin && (
           <div style="margin-top:8px">
-            <a class="link-btn" href={`https://wa.me/${wa}?text=${encodeURIComponent(`Halo, saya mau perpanjang hosting ${ed.data.urls.hostnames[0] ?? ""}`)}`} target="_blank" rel="noopener">
+            <a class="link-btn" href={`https://wa.me/${wa}?text=${encodeURIComponent(`Halo, saya mau perpanjang hosting ${displayUrl(ed.data.urls.site)}`)}`} target="_blank" rel="noopener">
               Hubungi admin untuk perpanjang
             </a>
           </div>
@@ -106,8 +107,10 @@ function HostingNotice() {
 
 function SiteAddress() {
   const ed = useEditor();
-  const host = ed.data.urls.hostnames[0] ?? ed.data.urls.site.replace(/^https:\/\//, "");
-  const dot = host.indexOf(".");
+  // Tampilkan alamat publik, mis. "web.rela.my.id/warung-busri" — bagian nama usaha ditebalkan.
+  const shown = displayUrl(ed.data.urls.site);
+  const at = shown.lastIndexOf(ed.data.tenant.slug);
+  const [before, after] = at >= 0 ? [shown.slice(0, at), shown.slice(at + ed.data.tenant.slug.length)] : [shown, ""];
   const live = ed.data.tenant.status === "active";
   async function share() {
     const text = `Kunjungi website ${ed.content.business.name}: ${ed.data.urls.site}`;
@@ -117,8 +120,9 @@ function SiteAddress() {
     <section class="site-head">
       <p class="greet">{live ? "Website Anda tayang di" : "Alamat website Anda nanti"}</p>
       <a class="site-addr" href={ed.data.urls.site} target="_blank" rel="noopener">
-        {host.slice(0, dot)}
-        <span class="sub">{host.slice(dot)}</span>
+        <span class="sub">{before}</span>
+        {at >= 0 ? ed.data.tenant.slug : ""}
+        <span class="sub">{after}</span>
       </a>
       <div class="site-actions">
         {live && (

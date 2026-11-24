@@ -5,13 +5,10 @@
   "compatibility_date": "2026-11-01",
 
   // ===================== PRODUKSI (default `wrangler deploy`) =====================
-  // Ganti "domainku.id" dengan domain asli. Route `media.domainku.id/*` tanpa Worker
-  // dibuat di dashboard (docs/DEPLOYMENT.md §4).
+  // Landing page & semua situs pelanggan: https://web.rela.my.id/<slug>/
+  // Domain milik pelanggan (Fase 7) dilayani Worker yang sama berdasarkan hostname.
   "workers_dev": false,
-  "routes": [
-    { "pattern": "*.domainku.id/*", "zone_name": "domainku.id" },
-    { "pattern": "domainku.id/*", "zone_name": "domainku.id" }
-  ],
+  "routes": [{ "pattern": "web.rela.my.id", "custom_domain": true }],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
@@ -20,32 +17,42 @@
   "r2_buckets": [{ "binding": "SITES", "bucket_name": "umkm-sites" }],
   "vars": {
     "ENVIRONMENT": "production",
-    "ROOT_DOMAIN": "domainku.id",
-    "MEDIA_ORIGIN": "https://media.domainku.id"
+    "SITE_MODE": "path",
+    "PLATFORM_HOST": "web.rela.my.id",
+    "ROOT_DOMAIN": "web.rela.my.id",
+    "BRAND_URL": "https://web.rela.my.id",
+    "MEDIA_ORIGIN": "https://media.rela.my.id"
   },
   "observability": { "enabled": true, "head_sampling_rate": 0.1 },
 
   "env": {
-    // ===================== STAGING di workers.dev (tanpa domain) =====================
-    // Situs pelanggan dibuka lewat path: https://umkm-site-staging.<sub>.workers.dev/<slug>/
+    // ===================== STAGING di workers.dev =====================
+    // https://umkm-site-staging.<sub>.workers.dev/<slug>/  (SUBDOMAIN diisi scripts/setup-cloudflare.mjs)
     "staging": {
       "workers_dev": true,
       "routes": [],
       "r2_buckets": [{ "binding": "SITES", "bucket_name": "umkm-sites-staging" }],
       "vars": {
         "ENVIRONMENT": "staging",
-        "ROOT_DOMAIN": "domainku.id",
+        "SITE_MODE": "path",
+        "PLATFORM_HOST": "umkm-site-staging.SUBDOMAIN.workers.dev",
+        "ROOT_DOMAIN": "web.rela.my.id",
+        "BRAND_URL": "https://umkm-site-staging.SUBDOMAIN.workers.dev",
         "MEDIA_ORIGIN": "https://umkm-cms-staging.SUBDOMAIN.workers.dev/api/_dev/media"
       }
     },
     // ===================== PENGEMBANGAN LOKAL (`wrangler dev --env dev`) =====================
+    // http://localhost:8788/<slug>/
     "dev": {
       "workers_dev": true,
       "routes": [],
       "r2_buckets": [{ "binding": "SITES", "bucket_name": "umkm-sites" }],
       "vars": {
         "ENVIRONMENT": "development",
+        "SITE_MODE": "path",
+        "PLATFORM_HOST": "localhost",
         "ROOT_DOMAIN": "domainku.id",
+        "BRAND_URL": "http://localhost:8788",
         "MEDIA_ORIGIN": "http://localhost:8787/api/_dev/media"
       }
     }

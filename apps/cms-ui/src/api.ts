@@ -1,3 +1,15 @@
+/** Konfigurasi publik dari /api/config (diisi saat aplikasi dimuat). */
+export const appConfig = { siteUrlPattern: "https://web.rela.my.id/{slug}/" };
+
+export function siteUrlFor(slug: string): string {
+  return appConfig.siteUrlPattern.replace("{slug}", slug);
+}
+
+/** Tanpa protokol & garis miring akhir, mis. "web.rela.my.id/toko". */
+export function displayUrl(url: string): string {
+  return url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,

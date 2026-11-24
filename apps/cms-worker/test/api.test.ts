@@ -79,7 +79,8 @@ describe("alur lengkap CMS", () => {
     const a = await admin.req("POST", "/admin/tenants", { businessName: "Warung Bu Sri", slug: "warung-busri", category: "kuliner", templateId: "kuliner-01", owner: { username: "busri" } });
     expect(a.status).toBe(201);
     tenantA = a.json.data.tenantId;
-    expect(a.json.data.siteUrl).toBe("https://warung-busri.domainku.id");
+    expect(a.json.data.siteUrl).toBe("http://localhost:8788/warung-busri/");
+    expect(a.json.data.waMessage).toContain("localhost:8788/warung-busri");
     expect(a.json.data.waMessage).toContain(a.json.data.temporaryPassword);
 
     const dup = await admin.req("POST", "/admin/tenants", { businessName: "X", slug: "warung-busri", category: "kuliner", owner: { username: "lain" } });
@@ -166,7 +167,7 @@ describe("alur lengkap CMS", () => {
     expect((await ownerA.req("POST", "/site/publish")).status).toBe(403); // masih draf
     const pub = await admin.req("POST", `/admin/tenants/${tenantA}/publish`);
     expect(pub.status).toBe(200);
-    expect(pub.json.data.urls).toEqual(["https://warung-busri.domainku.id/"]);
+    expect(pub.json.data.urls).toEqual(["http://localhost:8788/warung-busri/"]);
 
     const obj = await E.SITES.get("h/warung-busri.domainku.id/index.html");
     const html = await obj!.text();
@@ -216,7 +217,7 @@ describe("alur lengkap CMS", () => {
     const item = exp.json.data.find((x: any) => x.id === tenantA);
     expect(item.hostingState).toBe("expiring_7");
     expect(item.waReminderText).toContain("Rp 100.000");
-    expect(item.waReminderText).toContain("warung-busri.domainku.id");
+    expect(item.waReminderText).toContain("localhost:8788/warung-busri");
 
     const site = await ownerA.req("GET", "/site");
     expect(site.json.data.tenant.hosting.state).toBe("expiring_7");

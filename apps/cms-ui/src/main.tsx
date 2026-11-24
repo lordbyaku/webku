@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import "./styles.css";
-import { adminEndpoints, api, ownerEndpoints } from "./api";
+import { adminEndpoints, api, appConfig, ownerEndpoints } from "./api";
 import { EditorProvider, useEditor } from "./editor";
 import { Icon } from "./components/Icon";
 import { SaveIndicator } from "./components/publish";
@@ -88,14 +88,14 @@ function Account({ me }: { me: Me }) {
 function App() {
   const path = useRoute();
   const [me, setMe] = useState<Me | null | undefined>(undefined);
-  const [rootDomain, setRootDomain] = useState("domainku.id");
+
 
   useEffect(() => {
     api<Me>("GET", "/auth/me")
       .then(setMe)
       .catch(() => setMe(null));
-    api<{ rootDomain: string }>("GET", "/config")
-      .then((c) => setRootDomain(c.rootDomain))
+    api<{ siteUrlPattern: string }>("GET", "/config")
+      .then((c) => (appConfig.siteUrlPattern = c.siteUrlPattern))
       .catch(() => {});
     const lost = () => setMe(null);
     const pw = () => setMe((m) => (m ? { ...m, user: { ...m.user, mustChangePassword: true } } : m));
@@ -128,8 +128,8 @@ function App() {
     }
     const t = match("/admin/t/:id", path);
     let page;
-    if (t) page = <AdminTenant id={t.id!} rootDomain={rootDomain} />;
-    else if (path === "/admin/new") page = <AdminNew rootDomain={rootDomain} />;
+    if (t) page = <AdminTenant id={t.id!} />;
+    else if (path === "/admin/new") page = <AdminNew />;
     else if (path === "/admin/hosting") page = <AdminHosting />;
     else {
       if (path !== "/admin") go("/admin");
