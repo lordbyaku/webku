@@ -40,6 +40,35 @@
   "observability": { "enabled": true },
 
   "env": {
+    // ===================== STAGING di workers.dev (tanpa domain) =====================
+    // SUBDOMAIN diisi otomatis oleh scripts/setup-cloudflare.mjs --staging
+    "staging": {
+      "workers_dev": true,
+      "routes": [],
+      "d1_databases": [
+        { "binding": "DB", "database_name": "umkm-db-staging", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "../../migrations" }
+      ],
+      "r2_buckets": [
+        { "binding": "SITES", "bucket_name": "umkm-sites-staging" },
+        { "binding": "MEDIA", "bucket_name": "umkm-media-staging" }
+      ],
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "ROOT_DOMAIN": "domainku.id",
+        "CMS_ORIGIN": "https://umkm-cms-staging.SUBDOMAIN.workers.dev",
+        "MEDIA_ORIGIN": "https://umkm-cms-staging.SUBDOMAIN.workers.dev/api/_dev/media",
+        "SITE_URL_PATTERN": "https://umkm-site-staging.SUBDOMAIN.workers.dev/{slug}/",
+        "BRAND_NAME": "DomainKu",
+        "PBKDF2_ITER": "100000",
+        "HOSTING_PRICE_IDR": "100000",
+        "PAYMENT_INFO": "",
+        "ADMIN_WA": "",
+        // Kunci uji Turnstile (selalu lolos) — staging hanya berisi data uji.
+        "TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
+        "ZONE_ID": ""
+      },
+      "triggers": { "crons": ["17 * * * *"] }
+    },
     // ===================== PENGEMBANGAN LOKAL (`wrangler dev --env dev`) =====================
     "dev": {
       "workers_dev": true,

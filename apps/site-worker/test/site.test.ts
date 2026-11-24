@@ -75,3 +75,33 @@ describe("site-worker", () => {
     expect(w.headers.get("location")).toBe("https://domainku.id/");
   });
 });
+
+describe("staging di workers.dev (path)", () => {
+  // Panggil handler langsung dengan ENVIRONMENT=staging (tes lain memakai env.dev).
+  const call = async (path: string) => {
+    const { default: worker } = await import("../src/index");
+    const { createExecutionContext, waitOnExecutionContext } = await import("cloudflare:test");
+    const ctx = createExecutionContext();
+    const res = await worker.fetch(new Request(`https://umkm-site-staging.contoh.workers.dev${path}`), { ...(env as any), ENVIRONMENT: "staging" }, ctx);
+    await waitOnExecutionContext(ctx);
+    return res;
+  };
+
+  it("/<slug>/ melayani situs pelanggan", async () => {
+    const r = await call("/toko/");
+    expect(r.status).toBe(200);
+    expect(await r.text()).toContain("<h1>Halo</h1>");
+  });
+
+  it("/<slug> dialihkan ke /<slug>/ dan /<slug>/robots.txt bekerja", async () => {
+    const r = await call("/toko");
+    expect(r.status).toBe(301);
+    expect(r.headers.get("location")).toBe("https://umkm-site-staging.contoh.workers.dev/toko/");
+    expect((await call("/toko/robots.txt")).status).toBe(200);
+  });
+
+  it("/ menampilkan landing page; slug tak terdaftar → 404", async () => {
+    expect(await (await call("/")).text()).toContain("mulai dari");
+    expect((await call("/tidak-ada/")).status).toBe(404);
+  });
+});

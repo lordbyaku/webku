@@ -74,6 +74,12 @@ npm run typecheck
 
 ## Deploy
 
+**Panduan lengkap langkah demi langkah: [`docs/DEPLOY-CHECKLIST.md`](docs/DEPLOY-CHECKLIST.md).** Ringkasnya:
+
+- Staging tanpa domain (workers.dev): `node scripts/setup-cloudflare.mjs --staging`
+- Produksi: `node scripts/configure-domain.mjs --domain … --brand … --wa …` → `node scripts/setup-cloudflare.mjs --production` → set rahasia → `--production --deploy`
+- CI otomatis di setiap push; deploy manual lewat GitHub Actions → **Deploy**.
+
 Konfigurasi `wrangler.jsonc` sudah dipisah: **bagian utama = produksi** (`wrangler deploy`), **`env.dev` = lokal** (dipakai otomatis oleh `npm run dev:*` dan tes).
 
 ```bash

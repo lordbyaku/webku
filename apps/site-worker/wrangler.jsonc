@@ -26,6 +26,18 @@
   "observability": { "enabled": true, "head_sampling_rate": 0.1 },
 
   "env": {
+    // ===================== STAGING di workers.dev (tanpa domain) =====================
+    // Situs pelanggan dibuka lewat path: https://umkm-site-staging.<sub>.workers.dev/<slug>/
+    "staging": {
+      "workers_dev": true,
+      "routes": [],
+      "r2_buckets": [{ "binding": "SITES", "bucket_name": "umkm-sites-staging" }],
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "ROOT_DOMAIN": "domainku.id",
+        "MEDIA_ORIGIN": "https://umkm-cms-staging.SUBDOMAIN.workers.dev/api/_dev/media"
+      }
+    },
     // ===================== PENGEMBANGAN LOKAL (`wrangler dev --env dev`) =====================
     "dev": {
       "workers_dev": true,

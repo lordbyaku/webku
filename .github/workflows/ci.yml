@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build (huruf + antarmuka CMS)
+        run: npm run build
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Tes (unit, integrasi CMS, Worker situs)
+        run: npm test

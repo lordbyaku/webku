@@ -58,17 +58,30 @@ export default {
       return new Response("Method Not Allowed", { status: 405, headers: { allow: "GET, HEAD" } });
     }
     const url = new URL(req.url);
-    const host = resolveHost(req, url, env);
+    let host = resolveHost(req, url, env);
+    let pathname = url.pathname;
+
+    // Staging di workers.dev (belum ada domain): situs pelanggan dibuka lewat path, mis. /warung-busri/
+    if (env.ENVIRONMENT === "staging") {
+      const m = /^\/([a-z0-9](?:[a-z0-9-]{1,38})[a-z0-9])(\/.*)?$/.exec(pathname);
+      if (m) {
+        if (!m[2]) return Response.redirect(`${url.origin}/${m[1]}/`, 301);
+        host = `${m[1]}.${env.ROOT_DOMAIN}`;
+        pathname = m[2];
+      } else {
+        host = env.ROOT_DOMAIN;
+      }
+    }
 
     // Landing page di domain utama
     if (host === env.ROOT_DOMAIN || host === `www.${env.ROOT_DOMAIN}`) {
       if (host.startsWith("www.")) return Response.redirect(`https://${env.ROOT_DOMAIN}${url.pathname}`, 301);
-      const path = url.pathname === "/" ? "/_landing/" : url.pathname;
+      const path = pathname === "/" ? "/_landing/" : pathname;
       return env.ASSETS.fetch(new Request(new URL(path, url.origin), req));
     }
     // Subdomain pelanggan & domain kustom (Fase 7) dilayani dari R2 berdasarkan hostname.
 
-    const file = FILES[url.pathname];
+    const file = FILES[pathname];
     // Path lain: 404 ringan (bukan redirect) agar tidak memicu permintaan Worker kedua.
     if (!file) return new Response("Not Found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
 

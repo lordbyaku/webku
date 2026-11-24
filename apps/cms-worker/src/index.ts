@@ -24,9 +24,10 @@ app.get("/api/config", (c) =>
 app.route("/api/auth", authRoutes);
 app.route("/api/admin", adminRoutes);
 
-// Hanya untuk pengembangan lokal: R2 publik tidak tersedia di `wrangler dev`.
+// Pengganti R2 publik untuk dev & staging.
 app.get("/api/_dev/media/*", async (c) => {
-  if (c.env.ENVIRONMENT !== "development") return c.notFound();
+  // Hanya dev & staging (workers.dev, belum ada R2 custom domain). Mati di produksi.
+  if (c.env.ENVIRONMENT === "production") return c.notFound();
   const key = c.req.path.replace(/^\/api\/_dev\/media\//, "");
   const obj = await c.env.MEDIA.get(key);
   if (!obj) return c.notFound();
