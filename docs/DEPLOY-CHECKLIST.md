@@ -105,3 +105,25 @@ Lalu Actions → **Deploy** → Run workflow → pilih `staging` / `production`.
 - D1 → rows read/written < 70% kuota
 - R2 → storage < 7 GB
 - Admin → "Backup otomatis terakhir" < 8 hari
+
+---
+
+## Status produksi (24 November 2026)
+
+| Komponen | Status |
+|---|---|
+| `https://web.rela.my.id` (landing + situs pelanggan) | ✅ Tayang (Worker `umkm-site`) |
+| `https://cms.rela.my.id` | ✅ Tayang (Worker `umkm-cms`), Turnstile asli aktif |
+| `https://media.rela.my.id` | ✅ Terhubung ke R2 `umkm-media` (SSL diterbitkan otomatis) |
+| D1 `umkm-db`, R2 `umkm-sites` & `umkm-media` | ✅ Dibuat, migrasi 0001–0002 diterapkan |
+| Akun admin produksi | ✅ `PRODUCTION-LOGIN.local.md` (lokal, tidak di git) |
+| Backup otomatis | ✅ Cron tiap jam (backup mingguan bertahap) |
+| `CF_PURGE_TOKEN` | ⏳ Belum (opsional — tanpa ini perubahan tayang ≤ 5 menit) |
+| WAF rate limit login, Transform Rule media, Cloudflare Access | ⏳ Manual di dashboard (lihat B3) |
+
+### Catatan CPU login (keputusan: dibiarkan dulu)
+Terukur di staging: login **24 ms CPU**, buat pelanggan **17 ms** (batas Workers Free 10 ms). Saat ini dibiarkan.
+Jika login mulai sering gagal dengan **error 1102**:
+1. Ubah `PBKDF2_ITER` menjadi `"35000"` di bagian produksi `apps/cms-worker/wrangler.jsonc`, lalu `cd apps/cms-worker && npx wrangler deploy`
+   (berlaku untuk password baru/hasil reset; password lama tetap bisa dipakai), **atau**
+2. Upgrade ke Workers Paid ($5/bulan) — sekaligus menghapus batas 100.000 request/hari yang dibagi dengan relapos/rasapos.

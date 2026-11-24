@@ -16,7 +16,7 @@
     "run_worker_first": ["/api/*"]
   },
   "d1_databases": [
-    { "binding": "DB", "database_name": "umkm-db", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "../../migrations" }
+    { "binding": "DB", "database_name": "umkm-db", "database_id": "13ecd6c7-e881-43ab-8072-ea4098c7581c", "migrations_dir": "../../migrations" }
   ],
   "r2_buckets": [
     { "binding": "SITES", "bucket_name": "umkm-sites" },
@@ -29,12 +29,12 @@
     "MEDIA_ORIGIN": "https://media.rela.my.id",
     "SITE_URL_PATTERN": "https://web.rela.my.id/{slug}/",
     "BRAND_URL": "https://web.rela.my.id",
-    "BRAND_NAME": "DomainKu",
+    "BRAND_NAME": "ReLa Web Provider",
     "PBKDF2_ITER": "100000",
     "HOSTING_PRICE_IDR": "100000",
-    "PAYMENT_INFO": "",
-    "ADMIN_WA": "",
-    "TURNSTILE_SITE_KEY": "GANTI_DENGAN_SITE_KEY_TURNSTILE",
+    "PAYMENT_INFO": "Silakan hubungi WhatsApp admin di 0856-2717-803 untuk info pembayaran.",
+    "ADMIN_WA": "628562717803",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAGQSUYiRljcJp08e",
     "ZONE_ID": "175cbe991c9e8e9486b04f2dc935a643"
   },
   // Backup bertahap & pembersihan: setiap jam di menit ke-17.
