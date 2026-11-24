@@ -48,7 +48,7 @@
       "workers_dev": true,
       "routes": [],
       "d1_databases": [
-        { "binding": "DB", "database_name": "umkm-db-staging", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "../../migrations" }
+        { "binding": "DB", "database_name": "umkm-db-staging", "database_id": "451989a5-6f56-4c20-b035-5d7f7925a3ce", "migrations_dir": "../../migrations" }
       ],
       "r2_buckets": [
         { "binding": "SITES", "bucket_name": "umkm-sites-staging" },
@@ -57,10 +57,10 @@
       "vars": {
         "ENVIRONMENT": "staging",
         "ROOT_DOMAIN": "web.rela.my.id",
-        "BRAND_URL": "https://umkm-site-staging.SUBDOMAIN.workers.dev",
-        "CMS_ORIGIN": "https://umkm-cms-staging.SUBDOMAIN.workers.dev",
-        "MEDIA_ORIGIN": "https://umkm-cms-staging.SUBDOMAIN.workers.dev/api/_dev/media",
-        "SITE_URL_PATTERN": "https://umkm-site-staging.SUBDOMAIN.workers.dev/{slug}/",
+        "BRAND_URL": "https://umkm-site-staging.haritrisna.workers.dev",
+        "CMS_ORIGIN": "https://umkm-cms-staging.haritrisna.workers.dev",
+        "MEDIA_ORIGIN": "https://umkm-cms-staging.haritrisna.workers.dev/api/_dev/media",
+        "SITE_URL_PATTERN": "https://umkm-site-staging.haritrisna.workers.dev/{slug}/",
         "BRAND_NAME": "DomainKu",
         "PBKDF2_ITER": "100000",
         "HOSTING_PRICE_IDR": "100000",

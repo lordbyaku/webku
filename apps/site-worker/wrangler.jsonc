@@ -35,10 +35,10 @@
       "vars": {
         "ENVIRONMENT": "staging",
         "SITE_MODE": "path",
-        "PLATFORM_HOST": "umkm-site-staging.SUBDOMAIN.workers.dev",
+        "PLATFORM_HOST": "umkm-site-staging.haritrisna.workers.dev",
         "ROOT_DOMAIN": "web.rela.my.id",
-        "BRAND_URL": "https://umkm-site-staging.SUBDOMAIN.workers.dev",
-        "MEDIA_ORIGIN": "https://umkm-cms-staging.SUBDOMAIN.workers.dev/api/_dev/media"
+        "BRAND_URL": "https://umkm-site-staging.haritrisna.workers.dev",
+        "MEDIA_ORIGIN": "https://umkm-cms-staging.haritrisna.workers.dev/api/_dev/media"
       }
     },
     // ===================== PENGEMBANGAN LOKAL (`wrangler dev --env dev`) =====================
